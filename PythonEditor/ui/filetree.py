@@ -12,7 +12,7 @@ def cd_up(path, level=1):
 package_dir = cd_up(__file__, level=2)
 sys.path.insert(0, package_dir)
 
-from PythonEditor.ui.Qt import QtWidgets, QtCore, QtGui
+from PythonEditor.utils.Qt import QtWidgets, QtCore, QtGui
 from PythonEditor.utils.constants import CONFIG_DIR
 
 

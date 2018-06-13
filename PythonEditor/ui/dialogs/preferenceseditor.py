@@ -1,5 +1,5 @@
 import os
-from PythonEditor.ui.Qt import QtWidgets
+from PythonEditor.utils.Qt import QtWidgets
 from PythonEditor.utils import constants
 
 

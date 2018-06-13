@@ -1,7 +1,7 @@
 import sys
 import imp
-from PythonEditor.ui.Qt import QtWidgets
-from PythonEditor.ui import pythoneditor
+from PythonEditor.utils.Qt import QtWidgets
+from PythonEditor.ui import manager
 
 
 class IDE(QtWidgets.QWidget):

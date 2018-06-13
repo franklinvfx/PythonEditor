@@ -1,15 +1,25 @@
 import os
+import sys
+import io
+import json
 
-from PythonEditor.ui.Qt import QtWidgets, QtCore, QtGui
-from PythonEditor.ui import shortcuteditor
-from PythonEditor.ui import preferenceseditor
+def cd_up(path, level=1):
+    for d in range(level):
+        path = os.path.dirname(path)
+    return path
+
+package_dir = cd_up(__file__, level=3)
+sys.path.insert(0, package_dir)
+
+from PythonEditor.utils.Qt import QtWidgets, QtCore, QtGui
 from PythonEditor.ui import edittabs
-from PythonEditor.ui import browser
+from PythonEditor.ui import filetree as browser
 from PythonEditor.ui import menubar
 from PythonEditor.ui.features import shortcuts
-from PythonEditor.ui.features import autosavexml
-# from PythonEditor.utils import save
-from PythonEditor.utils.constants import NUKE_DIR
+from PythonEditor.utils.constants import CONFIG_DIR, TEMP_DIR
+
+CONFIG_FILE = os.path.join(CONFIG_DIR, 'PythonEditorState.json')
+print CONFIG_FILE
 
 
 def get_parent(widget, level=1):
@@ -22,239 +32,186 @@ def get_parent(widget, level=1):
     return parent
 
 
+def read(file_path):
+    """Reads text from a file"""
+    with io.open(file_path, 'rt', encoding='utf8', errors='ignore') as f:
+        text = f.read()
+    return text
+
+
+def write(file_path, contents):
+    """Writes text to a file"""
+    if isinstance(contents, str):
+        contents = unicode(contents)
+    with io.open(file_path, 'wt', encoding='utf8', errors='ignore') as f:
+        f.write(contents)
+
+
+def read_json(json_path):
+    """
+    Read a json file, load its contents.
+    """
+    data = read(json_path)
+    json_dict = json.loads(data)
+    return json_dict
+
+
+def write_json(json_path, json_dict):
+    """
+    Write a dictionary to a json file.
+    """
+    assert isinstance(json_dict, dict)
+    data = json.dumps(json_dict, indent=4)
+    json_dir = cd_up(json_path)
+    if os.path.isdir(json_dir):
+        write(json_path, data)
+
+
+class File(object):
+    def __init__(self, editor):
+        self.editor = editor
+        self.editor.file = self
+        self.path = editor.path
+
+        name = editor.name
+        if '.' not in name:
+            name = name + '.py'
+
+        self.temp = os.path.join(TEMP_DIR, name)
+
+        # connect signals
+        self.editor.textChanged.connect(self.autosave)
+
+        if os.path.isfile(self.path):
+            self.read(self.path)
+
+    def read(self, path):
+        """
+        Read from text file and set current editor text.
+        """
+        self.editor.path = path
+        text = read(path)
+        self.editor.setPlainText(text)
+
+    def autosave(self):
+        """
+        Write to autosave file.
+        """
+        temp_dir = os.path.dirname(self.temp)
+        if not os.path.isdir(temp_dir):
+            os.makedirs(temp_dir)
+
+        write(self.temp, self.editor.toPlainText())
+
+    def save(self):
+        """
+        Save text to desired file.
+        """
+        write(self.path, self.editor.toPlainText())
+
+
 class Manager(QtWidgets.QWidget):
     """
-    Layout that connects code editors to a file system
-    that allows editing of multiple files and autosaves.
+    Manager connecting files and editor tabs.
     """
     def __init__(self):
         super(Manager, self).__init__()
-        self.currently_viewed_file = None
-        self.build_layout()
+        self.build_ui()
+        self.file_dict = {}
+        self._path = ''
 
-    def build_layout(self):
-        """
-        Create the layout.
-        """
+    def build_ui(self):
         layout = QtWidgets.QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        # self.setup_menu()
-        self.menubar = menubar.MenuBar(self)
-
-        left_widget = QtWidgets.QWidget()
-        left_layout = QtWidgets.QVBoxLayout(left_widget)
-
-        path_edit = QtWidgets.QLineEdit()
-        path_edit.textChanged.connect(self.update_tree)
-        self.path_edit = path_edit
-
-        splitter = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
-        self.splitter = splitter
-
-        self.xpanded = False
-        self.setLayout(layout)
-        self.tool_button = QtWidgets.QToolButton()
-        self.tool_button.setText('<')
-        self.tool_button.clicked.connect(self.xpand)
-        self.tool_button.setMaximumWidth(20)
-
-        layout.addWidget(splitter)
-
-        browse = browser.FileTree(NUKE_DIR)
-        self.browser = browse
-        left_layout.addWidget(self.path_edit)
-        left_layout.addWidget(self.browser)
-
+        self.browser = browser.FileTree()
         self.tabs = edittabs.EditTabs()
+        self.splitter = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
+        layout.addWidget(self.splitter)
 
-        widgets = [left_widget,
-                   self.tool_button,
-                   self.tabs]
-        for w in widgets:
-            splitter.addWidget(w)
+        self.splitter.addWidget(self.browser)
+        self.splitter.addWidget(self.tabs)
+        self.splitter.setSizes([200, 800])
 
-        splitter.setSizes([200, 10, 800])
+        # connect signals
+        self.browser.path_signal.connect(self.path_signal_handler)
+        shortcuts.ShortcutHandler(self.tabs)
+        self.tabs.new_editor_signal.connect(self.new_editor_handler)
+        self.tabs.closed_tab_signal.connect(self.closed_editor_handler)
+        self.tabs.tab_rename_signal.connect(self.tab_rename_handler)
 
-        self.install_features()
+    @property
+    def editor(self):
+        self._editor = self.tabs.currentWidget()
+        return self._editor
 
-        self.check_modified_tabs()
-        if self.tabs.count() == 0:
-            self.tabs.new_tab()
-
-    def install_features(self):
-        """
-        Install features and connect required signals.
-        """
-        sch = shortcuts.ShortcutHandler(self.tabs)
-        # sch.clear_output_signal.connect(self.terminal.clear)
-        self.shortcuteditor = shortcuteditor.ShortcutEditor(sch)
-        self.preferenceseditor = preferenceseditor.PreferencesEditor()
-
-        self.filehandler = autosavexml.AutoSaveManager(self.tabs)
-
-        self.browser.path_signal.connect(self.read)
-
-    def check_modified_tabs(self):
-        """
-        On open, check to see which documents are
-        not matching their files (if they have them)
-        """
-        indices = []
-        for tab_index in range(self.tabs.count()):
-            editor = self.tabs.widget(tab_index)
-            if not editor.objectName() == 'Editor':
-                continue
-
-            if not hasattr(editor, 'path'):
-                # document not yet saved
-                indices.append(tab_index)
-                continue
-
-            if not os.path.isfile(editor.path):
-                # file does not exist
-                indices.append(tab_index)
-                continue
-
-            with open(editor.path, 'rt') as f:
-                if f.read() != editor.toPlainText():
-                    indices.append(tab_index)
-
-        for index in indices:
-            self.update_icon(tab_index=index)
-
-    def xpand(self):
-        """
-        Expand or contract the QSplitter
-        to show or hide the file browser.
-        """
-        if self.xpanded:
-            symbol = '<'
-            sizes = [200, 10, 800]  # should be current sizes
-        else:
-            symbol = '>'
-            sizes = [0, 10, 800]  # should be current sizes
-
-        self.tool_button.setText(symbol)
-        self.splitter.setSizes(sizes)
-        self.xpanded = not self.xpanded
+    @editor.setter
+    def editor(self, editor):
+        self._editor = editor
 
     @QtCore.Slot(str)
-    def update_tree(self, path):
-        """
-        Update the file browser when the
-        lineedit is updated.
-        """
-        model = self.browser.model()
-        root_path = model.rootPath()
-        if root_path in path:
-            return
-        path = os.path.dirname(path)
-        if not os.path.isdir(path):
-            return
-        path = path+os.altsep
-        print path
-        self.browser.set_model(path)
-
-    def find_file_tab(self, path):
-        """
-        Search currently opened tabs for an editor
-        that matches the given file path.
-        """
-        for tab_index in range(self.tabs.count()):
-            editor = self.tabs.widget(tab_index)
-            if hasattr(editor, 'path') and editor.path == path:
-                return tab_index, editor
-
-        return None, None
-
-    @QtCore.Slot(str)
-    def read(self, path):
-        """
-        Read from text file and create associated editor
-        if not present. This should replace last viewed file
-        if that file has not been edited, to avoid cluttering.
-        """
-        self.path_edit.setText(path)
+    def path_signal_handler(self, path):
         if not os.path.isfile(path):
             return
+        file_name = os.path.basename(path)
 
-        tab_index, editor = self.find_file_tab(path)
-        already_open = (tab_index is not None)
-        if not already_open:
-            self.replace_viewed(path)
+        for i in range(self.tabs.count()):
+            editor = self.tabs.widget(i)
+            if editor.objectName() != 'Editor':
+                continue
+            if not hasattr(editor, 'path'):
+                continue
+            if editor.path == path:
+                self.tabs.setCurrentIndex(i)
+                break
         else:
-            self.tabs.setCurrentIndex(tab_index)
-        # if no editor with path in tabs add new
-        self.editor = self.tabs.currentWidget()
-        self.editor.path = path
+            self._path = path
+            self.tabs.new_tab(tab_name=file_name)
 
-        with open(path, 'rt') as f:
-            text = f.read()
-            self.editor.setPlainText(text)
-
-        doc = self.editor.document()
-        doc.modificationChanged.connect(self.modification_handler)
-        # self.editor.modificationChanged.connect(self.modification_handler)
-
-    def replace_viewed(self, path):
+    @QtCore.Slot(object)
+    def new_editor_handler(self, editor):
         """
-        Replaces the currently viewed document,
-        if unedited, with a new document.
+        Create a file object for the new editor.
         """
-        viewed = self.currently_viewed_file
-        self.currently_viewed_file = path
+        editor.path = self._path
+        file = File(editor)
+        self.file_dict[file] = editor
+        self._path = ''
 
-        find_replaceable = (viewed is not None)
-
-        # let's only replace files if they're the current tab
-        editor = self.tabs.currentWidget()
-        tab_index = self.tabs.currentIndex()
-        if hasattr(editor, 'path'):
-            if path == viewed:
-                find_replaceable = True
-
-        if find_replaceable:
-            # tab_index, editor = self.find_file_tab(viewed)
-
-            is_replaceable = (tab_index is not None)
-            if is_replaceable:
-                with open(viewed, 'rt') as f:
-                    file_text = f.read()
-                    editor_text = editor.toPlainText()
-                    if file_text != editor_text:  # ndiff cool feature
-                        is_replaceable = False
-
-            if is_replaceable:
-                self.tabs.setCurrentIndex(tab_index)
-                self.tabs.setTabText(tab_index, os.path.basename(path))
-                return
-
-        filename = os.path.basename(path)
-        self.tabs.new_tab(tab_name=filename)
-
-    @QtCore.Slot(bool)
-    def modification_handler(self, changed):
+    @QtCore.Slot(object)
+    def closed_editor_handler(self, editor):
         """
-        Slot for editor document modificationChanged
+        Cleanup file_dict,
+        Ask if user wants to save
         """
-        print changed, 'set tab italic!'
-        size = 20, 20
-        if changed:
-            size = 10, 10
-        self.update_icon(size=size)
+        file_path = editor.path
+        file_exists = os.path.isfile(file_path)
+        contents = editor.toPlainText()
 
-    def update_icon(self, tab_index=None, size=(10, 10)):
-        """
-        Represent the document's save state
-        by setting an icon on the tab.
-        """
-        if tab_index is None:
-            tab_index = self.tabs.currentIndex()
-        px = QtGui.QPixmap(*size)
-        ico = QtGui.QIcon(px)
-        self.tabs.setTabIcon(tab_index, ico)
-        # editor = self.tabs.widget(tab)
-        # editor.document().setModified(False)
+        if file_exists:
+            text = read(file_path)
+            if text != editor.toPlainText():
+                # ask user if they want to save
+                # in either case (let's not make temp files
+                # sticky/too persistent):
+                remove_temp = True
+
+        # delete temp file and json entry
+        temp_path = editor.file.temp
+        # extra safety checks about the temp file being in the right directory
+        if TEMP_DIR in temp_path:
+            print 'dir in path! deleting empty file!'
+        del self.file_dict[editor.file]
+
+        json_dict = read_json(CONFIG_FILE)
+        open_tabs = {editor.uid:{'path':file.path,
+                                 'temp':file.temp}
+                     for file, editor in self.file_dict.items()}
+        json_dict['open_tabs'] = open_tabs
+        print json_dict
+        write_json(CONFIG_FILE, json_dict)
+
+    @QtCore.Slot(str, str)
+    def tab_rename_handler(self, old_name, new_name):
+        print old_name, new_name
 
     def showEvent(self, event):
         """
@@ -269,3 +226,16 @@ class Manager(QtWidgets.QWidget):
             pass
 
         super(Manager, self).showEvent(event)
+
+
+if __name__ == '__main__':
+    from PythonEditor.ui.features import nukepalette
+
+    app = QtWidgets.QApplication(sys.argv)
+    app.setPalette(nukepalette.getNukePalette())
+    m = Manager()
+    m.show()
+    plastique = QtWidgets.QStyleFactory.create('Plastique')
+    QtWidgets.QApplication.setStyle(plastique)
+    # app.setFont(QtGui.QFont('Consolas'))
+    app.exec_()

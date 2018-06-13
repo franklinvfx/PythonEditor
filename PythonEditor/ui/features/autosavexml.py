@@ -4,7 +4,7 @@ import os
 import io
 import unicodedata
 from xml.etree import cElementTree as ElementTree
-from PythonEditor.ui.Qt import QtCore, QtWidgets
+from PythonEditor.utils.Qt import QtCore, QtWidgets
 from PythonEditor.utils.constants import (AUTOSAVE_FILE,
                                           XML_HEADER,
                                           create_autosave_file)

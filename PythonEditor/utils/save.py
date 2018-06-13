@@ -2,7 +2,7 @@ from __future__ import print_function
 import os
 import subprocess
 
-from PythonEditor.ui.Qt import QtWidgets
+from PythonEditor.utils.Qt import QtWidgets
 from PythonEditor.utils import constants
 
 

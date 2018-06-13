@@ -5,7 +5,7 @@ import re
 import keyword
 import inspect
 
-from PythonEditor.ui.Qt import QtGui, QtCore, QtWidgets
+from PythonEditor.utils.Qt import QtGui, QtCore, QtWidgets
 
 KEYWORDS = ['True',
             'False']

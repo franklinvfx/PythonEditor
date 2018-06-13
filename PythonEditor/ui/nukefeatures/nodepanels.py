@@ -1,6 +1,6 @@
 from functools import partial
 import nuke
-from PythonEditor.ui.Qt import QtWidgets, QtCore
+from PythonEditor.utils.Qt import QtWidgets, QtCore
 from PythonEditor.ui import editor
 
 

@@ -23,7 +23,7 @@ if __name__ == '__main__':
     """
     For testing outside of nuke.
     """
-    from PythonEditor.ui.Qt import QtWidgets
+    from PythonEditor.utils.Qt import QtWidgets
     from PythonEditor.ui.features import nukepalette
 
     app = QtWidgets.QApplication(sys.argv)

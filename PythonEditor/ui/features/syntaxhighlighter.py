@@ -1,4 +1,4 @@
-from PythonEditor.ui.Qt import QtGui, QtCore
+from PythonEditor.utils.Qt import QtGui, QtCore
 
 themes = {
   'Monokai': {

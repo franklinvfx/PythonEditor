@@ -1,4 +1,4 @@
-from PythonEditor.ui.Qt import QtWidgets, QtGui, QtCore
+from PythonEditor.utils.Qt import QtWidgets, QtGui, QtCore
 
 widgets = QtWidgets.QApplication.topLevelWidgets()
 ide = [w for w in widgets if w.objectName() == 'IDE'][0]

@@ -1,6 +1,6 @@
 from PythonEditor.ui.nukefeatures import nukedock
 from PythonEditor.utils import constants
-from PythonEditor.ui.Qt import QtWidgets, QtCore
+from PythonEditor.utils.Qt import QtWidgets, QtCore
 
 PANEL_NAME = 'i.d.e.Python_Editor'
 

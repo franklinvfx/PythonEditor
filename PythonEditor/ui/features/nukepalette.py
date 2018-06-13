@@ -1,4 +1,4 @@
-from PythonEditor.ui.Qt import QtCore, QtGui
+from PythonEditor.utils.Qt import QtCore, QtGui
 
 QPalette = QtGui.QPalette
 QBrush = QtGui.QBrush

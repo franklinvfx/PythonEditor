@@ -1,5 +1,5 @@
 from __future__ import print_function
-from PythonEditor.ui.Qt import QtWidgets, QtCore, QtGui
+from PythonEditor.utils.Qt import QtWidgets, QtCore, QtGui
 from PythonEditor.ui import editor
 
 

@@ -1,4 +1,4 @@
-from PythonEditor.ui.Qt import QtWidgets, QtCore, QtGui
+from PythonEditor.utils.Qt import QtWidgets, QtCore, QtGui
 
 
 class ShortcutEditor(QtWidgets.QTreeView):

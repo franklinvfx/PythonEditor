@@ -1,6 +1,6 @@
 import sys
 import traceback
-from PythonEditor.ui.Qt import QtCore, QtWidgets
+from PythonEditor.utils.Qt import QtCore, QtWidgets
 
 
 def full_stack():

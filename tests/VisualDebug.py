@@ -2,7 +2,7 @@ from __future__ import print_function
 import types
 import os
 os.environ['QT_PREFERRED_BINDING'] = 'PySide:PyQt4'
-from PythonEditor.ui.Qt import QtWidgets, QtGui, QtCore, QtOpenGL
+from PythonEditor.utils.Qt import QtWidgets, QtGui, QtCore, QtOpenGL
 
 
 class VisualDebug(QtWidgets.QWidget):

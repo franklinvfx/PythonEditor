@@ -1,7 +1,7 @@
 from __future__ import print_function
 import __main__
 from functools import partial
-from PythonEditor.ui.Qt import QtWidgets, QtGui, QtCore
+from PythonEditor.utils.Qt import QtWidgets, QtGui, QtCore
 from PythonEditor.core import execute
 
 

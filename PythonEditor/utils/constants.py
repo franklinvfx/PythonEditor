@@ -82,7 +82,7 @@ def set_external_editor_path(path=None, ask_user=False):
         root.remove(e)
 
     if ask_user and not path:
-        from PythonEditor.ui.Qt import QtWidgets
+        from PythonEditor.utils.Qt import QtWidgets
         dialog = QtWidgets.QInputDialog()
         args = (dialog,
                 u'Get Editor Path',
@@ -113,7 +113,7 @@ def set_external_editor_path(path=None, ask_user=False):
         return path
 
     elif ask_user:
-        from PythonEditor.ui.Qt import QtWidgets
+        from PythonEditor.utils.Qt import QtWidgets
         msg = u'External editor not found. '\
               'Certain features will not work.'\
               '\nYou can add or change an external '\

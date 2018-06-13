@@ -1,4 +1,4 @@
-from PythonEditor.ui.Qt import QtGui, QtCore, QtWidgets
+from PythonEditor.utils.Qt import QtGui, QtCore, QtWidgets
 from PythonEditor.utils.constants import IN_NUKE
 
 

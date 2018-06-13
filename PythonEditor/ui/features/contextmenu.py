@@ -7,7 +7,7 @@ import __main__
 import subprocess
 from functools import partial
 from pprint import pprint
-from PythonEditor.ui.Qt import QtWidgets, QtGui, QtCore
+from PythonEditor.utils.Qt import QtWidgets, QtGui, QtCore
 from PythonEditor.utils import constants
 
 

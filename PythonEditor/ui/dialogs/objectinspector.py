@@ -3,7 +3,7 @@ from __main__ import __dict__
 
 os.environ['QT_PREFERRED_BINDING'] = 'PySide:PyQt4'
 
-from PythonEditor.ui.Qt import QtWidgets, QtCore, QtGui
+from PythonEditor.utils.Qt import QtWidgets, QtCore, QtGui
 
 
 class ObjectInspector(QtWidgets.QWidget):
