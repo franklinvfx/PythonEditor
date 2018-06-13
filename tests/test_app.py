@@ -1,19 +1,11 @@
 # put python shebang here for linux testing
 """ For testing independently. """
 import sys
-import os
 import imp
-
-sys.dont_write_bytecode = True
-TESTS_DIR = os.path.dirname(__file__)
-PACKAGE_PATH = os.path.dirname(TESTS_DIR)
-sys.path.append(PACKAGE_PATH)
-
-for m in sys.modules.keys():
-    if 'PythonEditor' in m:
-        del sys.modules[m]
-
+import package_paths
 import PythonEditor
+
+package_paths  # to satisfy linter
 imp.reload(PythonEditor)
 
 if __name__ == '__main__':
@@ -28,7 +20,7 @@ if __name__ == '__main__':
     app.setPalette(nukepalette.getNukePalette())
     ide.show()
     ide.setStyleSheet('font-family:Consolas;font-size:8pt;')
-    ide.resize(500, 800)
+    ide.resize(500, 500)
     plastique = QtWidgets.QStyleFactory.create('Plastique')
     QtWidgets.QApplication.setStyle(plastique)
     sys.exit(app.exec_())

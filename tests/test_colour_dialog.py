@@ -1,5 +1,8 @@
+import package_paths
 from PythonEditor.utils.Qt import QtWidgets, QtGui, QtCore
 
+
+package_paths  # to satisfy linter
 widgets = QtWidgets.QApplication.topLevelWidgets()
 ide = [w for w in widgets if w.objectName() == 'IDE'][0]
 ide.setStyleSheet('background:rgb(45,42,46);')

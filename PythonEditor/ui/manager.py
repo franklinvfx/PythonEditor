@@ -226,16 +226,3 @@ class Manager(QtWidgets.QWidget):
             pass
 
         super(Manager, self).showEvent(event)
-
-
-if __name__ == '__main__':
-    from PythonEditor.ui.features import nukepalette
-
-    app = QtWidgets.QApplication(sys.argv)
-    app.setPalette(nukepalette.getNukePalette())
-    m = Manager()
-    m.show()
-    plastique = QtWidgets.QStyleFactory.create('Plastique')
-    QtWidgets.QApplication.setStyle(plastique)
-    # app.setFont(QtGui.QFont('Consolas'))
-    app.exec_()

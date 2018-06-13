@@ -18,20 +18,20 @@ class IDE(QtWidgets.QWidget):
         self.buildUI()
 
     def buildUI(self):
-        self.pythonEditor = pythoneditor.PythonEditor(parent=self)
-        self.layout.addWidget(self.pythonEditor)
+        self.manager = manager.Manager()
+        self.layout.addWidget(self.manager)
 
     def reload_package(self):
         """
         Reloads the whole package, except for modules
         in the not_reloadable list.
         """
-        self.pythonEditor.deleteLater()
-        del self.pythonEditor
+        self.manager.deleteLater()
+        del self.manager
 
         not_reloadable = [
-                            'PythonEditor.ui.idetabs',
-                            'PythonEditor.ui.pythoneditor',
+                            'PythonEditor.ui.edittabs',
+                            'PythonEditor.ui.manager',
                             'PythonEditor.ui.ide',
                             '__main__'
                          ]
@@ -43,7 +43,7 @@ class IDE(QtWidgets.QWidget):
                     and name not in not_reloadable):
                 imp.reload(mod)
 
-        imp.reload(pythoneditor)
+        imp.reload(manager)
 
         self.buildUI()
 
