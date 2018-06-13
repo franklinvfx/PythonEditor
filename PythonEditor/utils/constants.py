@@ -23,6 +23,8 @@ QT_VERSION = (pyside
               + 'PyQt5')
 
 XML_HEADER = '<?xml version="1.0" encoding="UTF-8"?>'
+CONFIG_DIR = os.path.join(NUKE_DIR, 'PythonEditorFiles')
+TEMP_DIR = os.path.join(CONFIG_DIR, 'temp')
 
 
 def create_autosave_file():

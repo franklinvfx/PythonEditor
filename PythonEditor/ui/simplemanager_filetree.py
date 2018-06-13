@@ -1,5 +1,6 @@
 import os
 import sys
+import io
 
 def cd_up(path, level=1):
     for d in range(level):
@@ -9,9 +10,9 @@ def cd_up(path, level=1):
 package_dir = cd_up(__file__, level=3)
 sys.path.insert(0, package_dir)
 
-from PythonEditor.ui.Qt import QtWidgets, QtCore
+from PythonEditor.ui.Qt import QtWidgets, QtCore, QtGui
 from PythonEditor.ui import editor
-from PythonEditor.ui import browser
+from PythonEditor.ui import filetree as browser
 from PythonEditor.ui import menubar
 from PythonEditor.utils.constants import NUKE_DIR
 
@@ -33,6 +34,7 @@ class Manager(QtWidgets.QWidget):
     def __init__(self):
         super(Manager, self).__init__()
         self.currently_viewed_file = None
+        self.blocking = True
         self.build_layout()
 
     def build_layout(self):
@@ -41,15 +43,10 @@ class Manager(QtWidgets.QWidget):
         """
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        # self.setup_menu()
         self.menubar = menubar.MenuBar(self)
 
         left_widget = QtWidgets.QWidget()
         left_layout = QtWidgets.QVBoxLayout(left_widget)
-
-        path_edit = QtWidgets.QLineEdit()
-        path_edit.textChanged.connect(self.update_tree)
-        self.path_edit = path_edit
 
         splitter = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
         self.splitter = splitter
@@ -63,23 +60,40 @@ class Manager(QtWidgets.QWidget):
 
         layout.addWidget(splitter)
 
-        browse = browser.FileTree(NUKE_DIR)
+        browse = browser.FileTree()
         self.browser = browse
-        left_layout.addWidget(self.path_edit)
         left_layout.addWidget(self.browser)
+        self.browser.no_selection_signal.connect(self.read_temp)
+        self.browser.name_edit_signal.connect(self.update_file_path)
 
         self.editor = editor.Editor(handle_shortcuts=True)
-        self.editor.path = 'C:/Users/tsalx/Desktop/temp_editor_save.py'
+        self.read_temp()
 
         widgets = [left_widget,
                    self.tool_button,
                    self.editor]
+
         for w in widgets:
             splitter.addWidget(w)
 
         splitter.setSizes([200, 10, 800])
         self.browser.path_signal.connect(self.read)
         self.editor.textChanged.connect(self.write)
+
+    def update_file_path(self, file_path):
+        self.editor.path = file_path
+        print 'updated to ' + file_path
+
+    def read_temp(self):
+        path = os.path.join(os.path.expanduser('~'), '.nuke')
+        if os.path.isdir(path):
+            path = os.path.join(path, 'PythonEditorHistory.py')
+            if not os.path.isfile(path):
+                with open(path, 'w') as f:
+                    f.write('')
+            self.editor.path = path
+            self.temp_path = path
+            self.read(path)
 
     def xpand(self):
         """
@@ -97,35 +111,29 @@ class Manager(QtWidgets.QWidget):
         self.splitter.setSizes(sizes)
         self.xpanded = not self.xpanded
 
-    @QtCore.Slot(str)
-    def update_tree(self, path):
-        """
-        Update the file browser when the
-        lineedit is updated.
-        """
-        model = self.browser.model()
-        root_path = model.rootPath()
-        if root_path in path:
-            return
-        path = os.path.dirname(path)
-        if not os.path.isdir(path):
-            return
-        path = path+os.altsep
-        print path
-        self.browser.set_model(path)
+    def unblock_on_timer(self):
+        self.blocking = False
+
+    def start_timer(self):
+        self._timer = QtCore.QTimer()
+        self._timer.setSingleShot(True)
+        self._timer.setInterval(200)
+        self._timer.timeout.connect(self.unblock_on_timer)
+        self._timer.start()
 
     @QtCore.Slot(str)
     def read(self, path):
         """
         Read from text file.
         """
-        self.path_edit.setText(path)
         if not os.path.isfile(path):
             return
 
-        self.editor.path = path
+        self.blocking = True
+        self.start_timer()
 
-        with open(path, 'rt') as f:
+        self.editor.path = path
+        with io.open(path, 'rt', encoding='utf8', errors='ignore') as f:
             text = f.read()
             self.editor.setPlainText(text)
 
@@ -134,11 +142,16 @@ class Manager(QtWidgets.QWidget):
         """
         Write to text file.
         """
+        if self.blocking:
+            return
 
         path = self.editor.path
 
-        with open(path, 'wt') as f:
-            f.write(self.editor.toPlainText())
+        try:
+            with io.open(path, 'wt', encoding='utf8', errors='ignore') as f:
+                f.write(self.editor.toPlainText())
+        except IOError as e:
+            print 'Cannot write.', e
 
     def showEvent(self, event):
         """
@@ -164,4 +177,5 @@ if __name__ == '__main__':
     m.show()
     plastique = QtWidgets.QStyleFactory.create('Plastique')
     QtWidgets.QApplication.setStyle(plastique)
+    # app.setFont(QtGui.QFont('Consolas'))
     app.exec_()

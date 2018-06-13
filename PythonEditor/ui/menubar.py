@@ -52,20 +52,28 @@ class MenuBar(object):
 
         self.widget.layout().addWidget(menu_bar)
 
+    @property
+    def editor(self):
+        if hasattr(self.widget, 'tabs'):
+            cw = self.widget.tabs.currentWidget()
+        else:
+            cw = self.widget.editor
+        return cw
+
     def save(self):
-        cw = self.widget.tabs.currentWidget()
+        cw = self.editor
         save.save(cw)
 
     def save_as(self):
-        cw = self.widget.tabs.currentWidget()
+        cw = self.editor
         save.save_as(cw)
 
     def save_selected_text(self):
-        cw = self.widget.tabs.currentWidget()
+        cw = self.editor
         save.save_selected_text(cw)
 
     def export_selected_to_external_editor(self):
-        cw = self.widget.tabs.currentWidget()
+        cw = self.editor
         save.export_selected_to_external_editor(cw)
 
     def export_current_tab_to_external_editor(self):

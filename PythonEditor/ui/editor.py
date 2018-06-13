@@ -44,6 +44,7 @@ class Editor(QtWidgets.QPlainTextEdit):
 
     relay_clear_output_signal = QtCore.Signal()
     editingFinished = QtCore.Signal()
+    name_changed_signal = QtCore.Signal(str, str)
 
     def __init__(self, handle_shortcuts=True):
         super(Editor, self).__init__()
@@ -70,6 +71,7 @@ class Editor(QtWidgets.QPlainTextEdit):
             self.shortcuteditor = shortcuteditor.ShortcutEditor(sch)
 
         self._uid = str(uuid.uuid4())
+        self._name = ''
 
         self.selectionChanged.connect(self.highlight_same_words)
 
@@ -87,7 +89,9 @@ class Editor(QtWidgets.QPlainTextEdit):
 
     @name.setter
     def name(self, name):
+        old_name = self._name
         self._name = name
+        self.name_changed_signal.emit(old_name, name)
 
     def _handle_text_changed(self):
         self._changed = True
