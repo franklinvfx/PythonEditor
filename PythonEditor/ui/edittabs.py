@@ -3,6 +3,9 @@ from PythonEditor.utils.Qt import QtWidgets, QtCore, QtGui
 from PythonEditor.ui import editor
 
 
+css = open('C:\Repositories\PythonEditor\css\qtabwidget.css').read()
+
+
 class EditTabs(QtWidgets.QTabWidget):
     """
     QTabWidget containing Editor
@@ -31,17 +34,22 @@ class EditTabs(QtWidgets.QTabWidget):
         tabBar.enter_signal.connect(self.tab_enter_handler)
         tabBar.tab_rename_signal.connect(self.tab_rename_signal)
 
-        self.setup_new_tab_btn()
+        # self.setup_new_tab_btn()
         self.tabCloseRequested.connect(self.close_tab)
         self.reset_tab_signal.connect(self.reset_tabs)
         self.currentChanged.connect(self.widgetChanged)
-        self.setStyleSheet("QTabBar::tab { height: 24px; }")
+        # self.setStyleSheet("QTabBar::tab { height: 24px; }")
+        self.setStyleSheet(css)
 
     @QtCore.Slot(int, QtCore.QPoint)
     def tab_enter_handler(self, index, pos):
         editor = self.widget(index)
-        if editor.objectName() != 'Editor':
+        if not hasattr(editor, 'objectName'):
             return
+        if (editor.objectName() != 'Editor'
+                or not hasattr(editor, 'path')):
+            return
+
         info = editor.path
 
         global_rect = self.tabBar().mapToGlobal(pos)
@@ -90,9 +98,9 @@ class EditTabs(QtWidgets.QTabWidget):
         index = 0 if count == 0 else count - 1
         _editor = editor.Editor(handle_shortcuts=False)
 
-        if (tab_name is None
-                or not tab_name):
-            tab_name = 'Tab_{0}'.format(index)
+        if (tab_name is None):
+            # tab_name = 'Tab_{0}'.format(index)
+            tab_name = ''
 
         _editor.name = tab_name
 
@@ -102,11 +110,25 @@ class EditTabs(QtWidgets.QTabWidget):
                        )
         self.setCurrentIndex(index)
 
+        if not hasattr(self, 'tab_buttons'):
+            self.tab_buttons = {}
+        nb = TabButton(self, _editor)
+        self.tab_buttons[nb] = self.widget(index)
+        nb.setMinimumSize(QtCore.QSize(50, 10))
+        nb.setAutoRaise(True)
+        nb.setText('Tab_{0}'.format(index))
+        from functools import partial
+        # nb.clicked.connect(partial(self.set_tab, nb))
+        self.tabBar().setTabButton(index, QtWidgets.QTabBar.RightSide, nb)
+
         self.tab_count = self.count()
         self.current_index = self.currentIndex()
         _editor.setFocus()
         self.new_editor_signal.emit(_editor)
         return _editor
+
+    # def set_tab(self, nb):
+    #     self.indexOf(self.tab_buttons[nb])
 
     def close_current_tab(self):
         """
@@ -167,10 +189,23 @@ class TabBar(QtWidgets.QTabBar):
         self.edittabs = edittabs
         self.setMouseTracking(True)
         self.current_hovered_index = -1
+        self.read_only = True
 
-    def mouseDoubleClickEvent(self, event):
-        self.show_name_edit()
-        super(TabBar, self).mouseDoubleClickEvent(event)
+    def paintEvent(self, event):
+        """
+        In case we are going to intercept how
+        QTabBar paints tabs based on tab widget status.
+        """
+        super(TabBar, self).paintEvent(event)
+
+    # def mousePressEvent(self, event):
+    #     if event.button() == QtCore.Qt.RightButton:
+    #         index = self.tabAt(event.pos())
+    #         # enabled = self.isTabEnabled(index)
+    #         # print(enabled)
+    #         # self.setTabData('data', [])
+    #         # self.setTabEnabled(index, not enabled)
+    #     super(TabBar, self).mousePressEvent(event)
 
     def mouseMoveEvent(self, event):
         pos = event.pos()
@@ -183,6 +218,23 @@ class TabBar(QtWidgets.QTabBar):
         self.current_hovered_index = index
         super(TabBar, self).mouseMoveEvent(event)
 
+
+class TabButton(QtWidgets.QToolButton):
+    def __init__(self, edittabs, _editor):
+        super(TabButton, self).__init__()
+        self.edittabs = edittabs
+        self.tab_bar = edittabs.tabBar()
+        self._editor = _editor
+
+    def mouseDoubleClickEvent(self, event):
+        self.show_name_edit()
+        super(TabButton, self).mouseDoubleClickEvent(event)
+
+    def mousePressEvent(self, event):
+        # TODO: implement drag and drop to change tab positions
+        self.edittabs.setCurrentWidget(self._editor)
+        super(TabButton, self).mousePressEvent(event)
+
     def show_name_edit(self):
         """
         Shows a QLineEdit widget where the tab
@@ -194,21 +246,23 @@ class TabBar(QtWidgets.QTabBar):
         if not editor.objectName() == 'Editor':
             return
 
-        index = self.currentIndex()
-        title = self.tabText(index)
+        index = self.edittabs.indexOf(self._editor)
+        # title = self.tabText(index)
+        title = self.text()
 
-        self.editor = editor
+        # self.editor = editor
         self.tab_text = title
         self.tab_index = index
-        self.setTabText(index, '')
+        # self.setTabText(index, '')
+        self.setText('')
 
         self.name_edit = QtWidgets.QLineEdit(self)
         self.name_edit.editingFinished.connect(self.rename_tab)
         self.name_edit.setText(title)
         self.name_edit.selectAll()
 
-        self.setTabButton(index,
-                          QtWidgets.QTabBar.LeftSide,
+        self.tab_bar.setTabButton(index,
+                          QtWidgets.QTabBar.RightSide,
                           self.name_edit)
 
         self.name_edit.setFocus(QtCore.Qt.MouseFocusReason)
@@ -234,7 +288,7 @@ class TabBar(QtWidgets.QTabBar):
 
         for tab_index in range(self.edittabs.count()):
             widget = self.edittabs.widget(tab_index)
-            if widget == self.editor:
+            if widget == self._editor:
                 self.tab_index = tab_index
             elif widget.objectName() == 'Editor':
                 # prevent duplicate tab names
@@ -242,12 +296,12 @@ class TabBar(QtWidgets.QTabBar):
                     if widget.name == text:
                         text = self.tab_text
 
-        self.setTabText(self.tab_index, text)
-        self.setTabButton(self.tab_index,
-                          QtWidgets.QTabBar.LeftSide,
-                          None)
+        self.setText(text)
+        self.tab_bar.setTabButton(self.tab_index,
+                          QtWidgets.QTabBar.RightSide,
+                          self)
 
-        editor = self.editor
+        editor = self._editor
         self.edittabs.setCurrentIndex(self.tab_index)
         if editor.objectName() == 'Editor':
             editor.name = text
@@ -256,4 +310,4 @@ class TabBar(QtWidgets.QTabBar):
         if text != self.tab_text:
             old_name = self.tab_text
             new_name = text
-            self.tab_rename_signal.emit(old_name, new_name)
+            self.tab_bar.tab_rename_signal.emit(old_name, new_name)

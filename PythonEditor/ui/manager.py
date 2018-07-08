@@ -1,15 +1,6 @@
 import os
-import sys
 import io
 import json
-
-def cd_up(path, level=1):
-    for d in range(level):
-        path = os.path.dirname(path)
-    return path
-
-package_dir = cd_up(__file__, level=3)
-sys.path.insert(0, package_dir)
 
 from PythonEditor.utils.Qt import QtWidgets, QtCore, QtGui
 from PythonEditor.ui import edittabs
@@ -18,13 +9,22 @@ from PythonEditor.ui import menubar
 from PythonEditor.ui.features import shortcuts
 from PythonEditor.utils.constants import CONFIG_DIR, TEMP_DIR
 
+
 CONFIG_FILE = os.path.join(CONFIG_DIR, 'PythonEditorState.json')
-print CONFIG_FILE
+
+
+def cd_up(path, level=1):
+    """
+    Return an nth level parent directory path.
+    """
+    for d in range(level):
+        path = os.path.dirname(path)
+    return path
 
 
 def get_parent(widget, level=1):
     """
-    Return a widget's nth parent widget.
+    Return a widget's nth level parent widget.
     """
     parent = widget
     for p in range(level):
@@ -68,22 +68,39 @@ def write_json(json_path, json_dict):
 
 
 class File(object):
+    """
+    Responsible for the communication between the editor
+    widget and the temporary and final files.
+    """
     def __init__(self, editor):
         self.editor = editor
         self.editor.file = self
-        self.path = editor.path
-
-        name = editor.name
-        if '.' not in name:
-            name = name + '.py'
-
-        self.temp = os.path.join(TEMP_DIR, name)
 
         # connect signals
         self.editor.textChanged.connect(self.autosave)
 
         if os.path.isfile(self.path):
             self.read(self.path)
+
+    @property
+    def path(self):
+        return self.editor.path
+
+    @path.setter
+    def path(self, path):
+        self._path = path
+
+    @property
+    def temp(self):
+        """
+        Constructs temp path from the editor name.
+        """
+        name = self.editor.name
+        if '.' not in name:
+            name = name + '.py'
+
+        self._temp = os.path.join(TEMP_DIR, name)
+        return self._temp
 
     def read(self, path):
         """
@@ -110,6 +127,24 @@ class File(object):
         write(self.path, self.editor.toPlainText())
 
 
+class OpenFiles(QtWidgets.QListView):
+    """Shows currently open files"""
+    open_file_signal = QtCore.Signal(str)
+
+    def __init__(self, manager):
+        super(OpenFiles, self).__init__()
+        self._manager = manager
+        self._model = QtGui.QStandardItemModel()
+        self.setModel(self._model)
+
+    def showEvent(self, event):
+        super(OpenFiles, self).showEvent(event)
+        self.load_temp_files()
+
+    def load_temp_files(self):
+        for f in os.listdir(TEMP_DIR):
+            self.open_file_signal.emit(f)
+
 class Manager(QtWidgets.QWidget):
     """
     Manager connecting files and editor tabs.
@@ -122,12 +157,23 @@ class Manager(QtWidgets.QWidget):
 
     def build_ui(self):
         layout = QtWidgets.QVBoxLayout(self)
+
+        self.sidebar = QtWidgets.QWidget()
+        self.sidebarlayout = QtWidgets.QVBoxLayout(self.sidebar)
+
+        self.openfiles = OpenFiles(self)
         self.browser = browser.FileTree()
+
+        self.sidebarlayout.addWidget(self.openfiles)
+        self.sidebarlayout.addWidget(self.browser)
+
         self.tabs = edittabs.EditTabs()
+        # self.tabs.new_tab(tab_name='')
+        self.tabs.new_tab()
         self.splitter = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
         layout.addWidget(self.splitter)
 
-        self.splitter.addWidget(self.browser)
+        self.splitter.addWidget(self.sidebar)
         self.splitter.addWidget(self.tabs)
         self.splitter.setSizes([200, 800])
 
@@ -137,6 +183,7 @@ class Manager(QtWidgets.QWidget):
         self.tabs.new_editor_signal.connect(self.new_editor_handler)
         self.tabs.closed_tab_signal.connect(self.closed_editor_handler)
         self.tabs.tab_rename_signal.connect(self.tab_rename_handler)
+        self.openfiles.open_file_signal.connect(self.tabs.new_tab)
 
     @property
     def editor(self):
