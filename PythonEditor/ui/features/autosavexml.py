@@ -169,6 +169,17 @@ def remove_control_characters(s):
     return ''.join(ch for ch in s if no_cc(ch))
 
 
+def get_tab_index(subscript):
+    """
+    To be used as a key function in a list sort.
+    """
+    tab_index = subscript.attrib.get('tab_index')
+    try:
+        return int(tab_index)
+    except TypeError:
+        return 1
+
+
 def parsexml(element_name, path=AUTOSAVE_FILE):
     if not create_autosave_file():
         return
@@ -221,17 +232,90 @@ def remove_empty_autosaves():
     information (no text and invalid or absent path).
     """
     root, subscripts = parsexml('subscript')
+    changes_made = False
     for s in subscripts:
         if not s.text:
             path = s.attrib.get('path')
-            if path is None:
+            if (path is None) or (not os.path.isfile(path)):
                 root.remove(s)
+                changes_made = True
                 continue
-            if not os.path.isfile(path):
-                root.remove(s)
-                continue
-            s.attrib['name'] = os.path.basename(path)
-    writexml(root)
+
+            file_name = os.path.basename(path)
+            if s.attrib['name'] != file_name:
+                s.attrib['name'] = file_name
+                changes_made = True
+
+    if changes_made:
+        writexml(root)
+
+
+def update_autosave_attributes(editor_dict):
+    """
+    Update any of the attributes that may have been
+    changed during the reading process, such as
+    tab_name or tab_index.
+    """
+    root, subscripts = parsexml('subscript')
+
+    changes_made = False
+
+    for s in subscripts:
+        uid = s.attrib.get('uuid')
+        if uid is None:
+            continue
+        tab = editor_dict[uid]
+        for a in 'tab_name', 'path', 'tab_index':
+            a1, a2 = a, a
+            if a == 'tab_name':
+                a1 = 'name'
+            if s.attrib.get(a1) != tab[a2]:
+                s.attrib[a1] = str(tab[a2])
+                changes_made = True
+
+    if changes_made:
+        writexml(root)
+
+
+from PythonEditor.ui import editor as EDITOR
+class DummyWidget(QtWidgets.QWidget):
+    """docstring for DummyWidget"""
+    def __init__(self, tab_data, tabs):
+        super(DummyWidget, self).__init__()
+        self.tab_data = tab_data
+        self._layout = QtWidgets.QHBoxLayout(self)
+        self.tabs = tabs
+        self.editor_created = False
+
+    def showEvent(self, event):
+        if not self.editor_created:
+            self.create_editor()
+        super(DummyWidget, self).showEvent(event)
+
+    def create_editor(self):
+        self.editor_created = True
+        # count = self.count()
+        # index = 0 if count == 0 else count - 1
+        editor = EDITOR.Editor(
+            handle_shortcuts=False,
+            uid=self.tab_data['uid'],
+            init_display=True
+            )
+
+        editor.name = self.tab_data['tab_name']
+        editor.path = self.tab_data['path']
+        editor.uid = self.tab_data['uid']
+        editor.tab_index = self.tabs.currentIndex()
+        editor.setPlainText(self.tab_data['text'])
+
+        # relay the contents saved signal
+        editor.contents_saved_signal.connect(self.tabs.contents_saved_signal)
+        self._layout.addWidget(editor)
+        self.editor = editor
+        editor.show()
+        print('adding editor!')
+        editor.setFocus()
+        # return editor
 
 
 class AutoSaveManager(QtCore.QObject):
@@ -262,6 +346,7 @@ class AutoSaveManager(QtCore.QObject):
                 the file is saved, the xml content cleared
         the xml entry will be deleted.
     """
+    new_tab_signal = QtCore.Signal(str)
     def __init__(self, tabs, tab_index=None):
         super(AutoSaveManager, self).__init__()
         self.setObjectName('AutoSaveManager')
@@ -288,7 +373,8 @@ class AutoSaveManager(QtCore.QObject):
         tmv.connect(self.handle_tab_moved)
 
         self.set_editor()
-        self.readautosave()
+        # self.readautosave()
+        self.loadautosave()
 
     @QtCore.Slot(int, int, bool)
     def handle_tab_switch(self, previous, current, tabremoved):
@@ -368,11 +454,19 @@ class AutoSaveManager(QtCore.QObject):
         self.timer_waiting = False
         self.autosave(editor=editor)
 
+    def set_editor_file(self, editor, path):
+        """
+        Set editor text and path, and into read-only mode.
+        """
+        path, text = self.readfile(path)
+        editor.read_only = True
+        editor.path = path
+        editor.setPlainText(text)
+
     def readfile(self, path):
         """
-        Opens any file and sets the editor's contents
-        to the file's contents. Changes .pyc to .py in
-        path arguments.
+        Changes .pyc to .py in path arguments.
+        Opens the file and returns the text.
         """
         if '.xml' in path:
             return self.readxml(path)
@@ -383,10 +477,7 @@ class AutoSaveManager(QtCore.QObject):
         with io.open(path, 'r') as f:
             text = f.read()
 
-        self.editor.read_only = True
-
-        self.editor.path = path
-        self.editor.setPlainText(text)
+        return path, text
 
     def readxml(self, path):
         parser = ElementTree.parse(path)
@@ -395,64 +486,184 @@ class AutoSaveManager(QtCore.QObject):
 
     def readautosave(self):
         """
+        Read the autosave file to return a
+        dictionary of editor attributes and
+        their contents.
+
+        Provides default values if they don't
+        exist.
+        """
+        editor_count = 0
+        editor_dict = {}
+
+        root, subscripts = parsexml('subscript')
+        subscripts = sorted(subscripts, key=get_tab_index)
+
+        for s in subscripts:
+
+            uid = s.attrib.get('uuid')
+            if uid is None:
+                uid = str(uuid.uuid4())
+
+            path = s.attrib.get('path')
+            if path is None:
+                path = ''
+
+            tab_index = s.attrib.get('tab_index')
+            if tab_index is None:
+                tab_index = editor_count
+            tab_index = int(tab_index)
+
+            text = s.text
+            if (text is None) or (not bool(text.strip())):
+                text = ''
+                if os.path.isfile(path):
+                    path, text = self.readfile(path)
+
+            tab_name = s.attrib.get('name')
+            if tab_name is None:
+                tab_name = 'Tab_%s' % editor_count
+
+            editor_dict[uid] = {
+            'uid':             uid,
+            'tab_name':   tab_name,
+            'path':           path,
+            'tab_index': tab_index,
+            'text':           text,
+            }
+
+            editor_count += 1
+
+        return editor_dict
+
+    def create_editors(self, editor_dict):
+        """
+        Populate the tabwidget with editors.
+        The editor_dict may get updated with
+        new tab_indexes during this process.
+        """
+        self.index_has_changed = False
+
+        # return
+        test_1 = False
+        test_2 = False
+        test_3 = False
+        test_4 = False
+
+        if test_1:
+            self.lazy_load_timer = QtCore.QTimer()
+            self.lazy_load_timer.timeout.connect()
+            #TEST 1: let's do this via signals. at least that'll improve my numbers.
+            self.new_tab_signal.connect(self.tabs.new_tab)
+            for tab in editor_dict.values():
+                self.new_tab_signal.emit(tab['tab_name'])
+
+            return
+
+        if test_2:
+            #TEST 2 - how fast are regular tabs? Answer - MUCH faster.
+            self.test_tabs = QtWidgets.QTabWidget()
+            tabs = self.test_tabs
+            # tabs = self.tabs
+            from pprint import pprint
+            # pprint(editor_dict)
+            for tab in editor_dict.values():
+                e = QtWidgets.QPlainTextEdit()
+                tabs.insertTab(
+                    int(tab['tab_index']),
+                    e,
+                    unicode(tab['tab_name'])
+                    )
+                e.setPlainText(tab['text'])
+
+            self.test_tabs.show()
+            return
+            #TEST
+
+        if test_3:
+            #TEST 2 - how fast are regular tabs? Answer - MUCH faster.
+            self.test_tabs = QtWidgets.QTabWidget()
+            tabs = self.test_tabs
+            # tabs = self.tabs
+            for x in range(200):
+                e = QtWidgets.QPlainTextEdit()
+                tabs.insertTab(0, e, 'tab_%s' % x)
+            self.test_tabs.show()
+            return
+            #TEST
+
+
+        def by_index(item):
+            return item.get('tab_index')
+
+        editors_in_order = sorted(editor_dict.values(), key=by_index)
+
+        if test_4: # dummy widget
+            self.loading_all_tabs = True
+            for tab in editors_in_order:
+                w = DummyWidget(tab, self.tabs)
+                index = int(tab['tab_index'])
+                self.tabs.insertTab(index, w, tab['tab_name'])
+                self.tabs.setCurrentIndex(index)
+
+            w.create_editor()
+            self.editor = w.editor
+            self.set_editor()
+            self.loading_all_tabs = False
+            return
+
+        editors = []
+        self.loading_all_tabs = True
+        for tab in editors_in_order:
+            editor = self.tabs.new_tab(tab_name=tab['tab_name'], init_features=False)
+            editors.append(editor)
+
+            editor.uid  =  tab['uid']
+            editor.path = tab['path']
+            text        = tab['text']
+
+            editor.read_only = bool(text)
+            index = self.tabs.currentIndex()
+            editor.tab_index = index
+
+            if index != int(tab['tab_index']):
+                self.index_has_changed = True
+                tab['tab_index'] = index
+
+            editor.setPlainText(text)
+        self.loading_all_tabs = False
+
+        return editor_dict
+
+    def loadautosave(self):
+        """
         Sets editor text content. First checks the
         autosave file for <subscript> elements and
         creates a tab per element.
         """
-        root, subscripts = parsexml('subscript')
 
-        def sort_by_index(subscript):
-            tab_index = subscript.attrib.get('tab_index')
-            try:
-                return int(tab_index)
-            except TypeError:
-                return 1
+        # 0) Clean autosave file for subscripts with no information (text|path).
+        remove_empty_autosaves()
 
-        editor_count = 0
-        subscripts = sorted(subscripts, key=sort_by_index)
-        for s in subscripts:
+        # 1) Read from autosave
+        editor_dict = self.readautosave()
 
-            if not s.text:
-                path = s.attrib.get('path')
-                if path is None:
-                    root.remove(s)
-                    continue
-                if not os.path.isfile(path):
-                    continue
-                s.attrib['name'] = os.path.basename(path)
-
-            try:
-                tab_name = s.attrib['name']
-            except KeyError:
-                tab_name = None
-
-            editor = self.tabs.new_tab(tab_name=tab_name)
-            if 'uuid' in s.attrib:
-                editor.uid = s.attrib['uuid']
-            else:
-                s.attrib['uuid'] = editor.uid
-
-            if 'path' in s.attrib:
-                editor.path = s.attrib['path']
-            elif hasattr(editor, 'path'):
-                s.attrib['path'] = editor.path
-
-            if s.text:
-                editor.setPlainText(s.text)
-                editor.read_only = False
-            else:
-                self.editor = editor
-                self.readfile(path)
-
-            editor.tab_index = self.tabs.currentIndex()
-            editor_count += 1
-
-        subscripts = self.update_tab_order(subscripts)
-
-        if editor_count == 0:
+        if len(editor_dict) == 0:
             self.tabs.new_tab()
+            return
 
-        writexml(root)
+        # 2) Update xml attributes with latest editor attributes
+        update_autosave_attributes(editor_dict)
+
+        # 3) Create the editor tabs using cached data.
+        self.create_editors(editor_dict)
+
+        # 4) Update the autosave file with new tab positions if they have changed.
+        if self.index_has_changed:
+            root, subscripts = parsexml('subscript')
+            subscripts = self.update_tab_order(subscripts)
+            writexml(root)
+
 
     def update_tab_order(self, subscripts):
         uids = [(i, getattr(self.tabs.widget(i), 'uid', None))
@@ -469,6 +680,8 @@ class AutoSaveManager(QtCore.QObject):
         If there are, prompt the user to see
         if they want to update their tab.
         """
+        if self.loading_all_tabs:
+            return
         if self.timer_waiting:
             return
 

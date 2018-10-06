@@ -51,7 +51,7 @@ class Editor(QtWidgets.QPlainTextEdit):
     relay_clear_output_signal = QtCore.Signal()
     editingFinished = QtCore.Signal()
 
-    def __init__(self, handle_shortcuts=True, uid=None):
+    def __init__(self, handle_shortcuts=True, uid=None, init_features=True):
         super(Editor, self).__init__()
         self.setObjectName('Editor')
         self.setAcceptDrops(True)
@@ -62,6 +62,30 @@ class Editor(QtWidgets.QPlainTextEdit):
         self._changed = False
         self.textChanged.connect(self._handle_text_changed)
 
+        if uid is None:
+            uid = str(uuid.uuid4())
+        self._uid = uid
+
+        self.wait_for_autocomplete = False
+        self._read_only = False
+
+        self._features_initialised = False
+        self._handle_shortcuts = handle_shortcuts
+        if init_features:
+            self.initialise_features()
+            self._features_initialised = True
+
+    @QtCore.Slot()
+    def initialise_features(self):
+        """
+        Load features of the editor that are for user interaction only.
+        Having this separate from __init__ allows for faster loading of
+        many editors.
+        """
+        if self._features_initialised:
+            return
+        self._features_initialised = True
+
         linenumberarea.LineNumberArea(self)
         syntaxhighlighter.Highlight(self.document())
         self.contextmenu = contextmenu.ContextMenu(self)
@@ -70,18 +94,13 @@ class Editor(QtWidgets.QPlainTextEdit):
         # TOOD: add a new autocompleter that uses DirectConnection.
         self.autocomplete = autocompletion.AutoCompleter(self)
 
-        if handle_shortcuts:
+        if self._handle_shortcuts:
             sch = shortcuts.ShortcutHandler(self, use_tabs=False)
             sch.clear_output_signal.connect(self.relay_clear_output_signal)
             self.shortcuteditor = shortcuteditor.ShortcutEditor(sch)
 
-        if uid is None:
-            uid = str(uuid.uuid4())
-        self._uid = uid
-
         self.selectionChanged.connect(self.highlight_same_words)
         self.modificationChanged.connect(self._handle_modificationChanged)
-        self._read_only = False
 
     @property
     def uid(self):
@@ -313,3 +332,9 @@ class Editor(QtWidgets.QPlainTextEdit):
                 and e.orientation() == QtCore.Qt.Orientation.Vertical):
             return self.wheel_signal.emit(e)
         super(Editor, self).wheelEvent(e)
+
+    def showEvent(self, e):
+        if not self._features_initialised:
+            self.initialise_features()
+
+        super(Editor, self).showEvent(e)

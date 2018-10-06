@@ -2,6 +2,37 @@ from __future__ import print_function
 from PythonEditor.ui.Qt import QtWidgets, QtCore, QtGui
 from PythonEditor.ui import editor as EDITOR
 
+# class DummyWidget(QtWidgets.QWidget):
+#     """docstring for DummyWidget"""
+#     def __init__(self, tab_data, tabs):
+#         super(DummyWidget, self).__init__()
+#         self.tab_data = tab_data
+#         self._layout = QtWidgets.QHBoxLayout()
+#         self.tabs = tabs
+#         self.editor_created = False
+
+#     def showEvent(self, event):
+#         if not self.editor_created:
+#             self.create_editor()
+#         super(DummyWidget, self).showEvent(event)
+
+#     def create_editor(self):
+#         # count = self.count()
+#         # index = 0 if count == 0 else count - 1
+#         editor = EDITOR.Editor(
+#             handle_shortcuts=False,
+#             uid=self.tab_data['uid'],
+#             init_features=True
+#             )
+
+#         editor.name = self.tab_data['tab_name']
+#         editor.tab_index = self.tabs.currentIndex()
+
+#         # relay the contents saved signal
+#         editor.contents_saved_signal.connect(self.contents_saved_signal)
+#         editor.setFocus()
+#         return editor
+
 
 class EditTabs(QtWidgets.QTabWidget):
     """
@@ -107,13 +138,17 @@ class EditTabs(QtWidgets.QTabWidget):
         tabBar.setTabEnabled(0, False)
 
     @QtCore.Slot(str)
-    def new_tab(self, tab_name=None):
+    def new_tab(self, tab_name=None, uid=None, init_features=True):
         """
         Creates a new tab.
         """
         count = self.count()
         index = 0 if count == 0 else count - 1
-        editor = EDITOR.Editor(handle_shortcuts=False)
+        editor = EDITOR.Editor(
+            handle_shortcuts=False,
+            uid=uid,
+            init_features=init_features
+            )
 
         if (tab_name is None
                 or not tab_name):
