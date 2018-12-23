@@ -109,6 +109,7 @@ class Actions(QtCore.QObject):
             for action_name, attributes in widget_actions.items():
                 method_name = attributes['Method']
                 if not hasattr(self, method_name):
+                    print('could not find method %s: %s' % (action_name, method_name))
                     continue
                 func = getattr(self, method_name)
                 action = make_action(

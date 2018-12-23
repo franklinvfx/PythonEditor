@@ -6,6 +6,38 @@ from PythonEditor.ui.Qt import QtWidgets, QtGui, QtCore
 from PythonEditor.utils.signals import connect
 from PythonEditor.ui.features import actions
 
+def key_to_sequence(key):
+    """
+    Convert the given QtCore.Qt.Key type
+    to a QKeySequence including currently
+    held modifiers.
+    """
+    modifier_map = {
+        QtCore.Qt.Key_Control: QtCore.Qt.ControlModifier,
+        QtCore.Qt.Key_Shift: QtCore.Qt.ShiftModifier,
+        QtCore.Qt.Key_Alt: QtCore.Qt.AltModifier,
+        QtCore.Qt.Key_Meta: QtCore.Qt.MetaModifier,
+    }
+    held = QtWidgets.QApplication.keyboardModifiers()
+    combo = 0
+    for mod in modifier_map.values():
+        if held & mod == mod:
+            combo |= mod
+    combo |= key
+
+    combo = QtGui.QKeySequence(combo)
+    return combo
+
+
+def seq_to_shortcut(combo):
+    combo = combo.toString()
+    try:
+        combo = str(combo)
+    except UnicodeEncodeError:
+        combo = repr(combo)
+    return combo
+
+
 # FIXME:
 # Shift+Home doesn't select
 # wrap_handler doesn't know which key was pressed (store it on the editor?)
@@ -55,6 +87,7 @@ class ShortcutHandler(QtCore.QObject):
 
         self.setParent(parent_widget)
         self.all_shortcuts = []
+        self.shortcut_dict = {}
 
         self.register_shortcuts()
         self.connect_signals()
@@ -71,7 +104,7 @@ class ShortcutHandler(QtCore.QObject):
 
     QtCore.Slot(QtGui.QKeyEvent)
     def handle_keypress(self, event):
-        
+
         # if event.isAutoRepeat():
         #     return
 
@@ -85,25 +118,18 @@ class ShortcutHandler(QtCore.QObject):
         ]:
             return
 
-        stroke = key
-        modifiers = event.modifiers()
-        stroke = modifiers | key
-        # TODO: need some way for the key
-        # to be recognised, for example in wrap_text
-        if not self.find_stroke(stroke):
-            if not self.find_stroke(key):
-                return
-        self.editor.shortcut_overrode_keyevent = True
+        combo = key_to_sequence(key)
+        shortcut = seq_to_shortcut(combo)
+        action = self.shortcut_dict.get(shortcut)
+        if action is None:
+            return
 
-    def find_stroke(self, stroke):
-        key_seq = QtGui.QKeySequence(stroke)
-        text = key_seq.toString()
-        for ks, action in self.all_shortcuts:
-            if ks == key_seq:
-                # print(ks, action, text)
-                action.trigger()
-                return True
-        return False
+        print(shortcut)
+        # need some way for the key to be
+        # recognised, for example in wrap_text
+        self.editor.last_key_pressed = key
+        action.trigger()
+        self.editor.shortcut_overrode_keyevent = True
 
     def register_shortcuts(self, action_dict=None):
         """
@@ -132,12 +158,17 @@ class ShortcutHandler(QtCore.QObject):
                 key_seqs = []
                 for shortcut in shortcuts:
                     key_seq = QtGui.QKeySequence(shortcut)
-                    self.all_shortcuts.append(
-                        (key_seq, action)
-                        )
+
+                    # convert to unicode again to make
+                    # sure the format stays the same
+                    s = key_seq.toString()
+                    self.shortcut_dict[s] = action
                     key_seqs.append(key_seq)
 
                 action.setShortcuts(key_seqs)
                 action.setShortcutContext(
                     QtCore.Qt.WidgetShortcut
                 )
+
+        from pprint import pprint
+        pprint(self.shortcut_dict)
