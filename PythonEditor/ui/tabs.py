@@ -582,8 +582,7 @@ class TabEditor(QtWidgets.QWidget):
 
         nb = self.new_tab_button = QtWidgets.QToolButton()
         nb.setToolTip('Click to add a new tab.')
-        # nb.setMaximumSize(QtCore.QSize(50, 10))
-        nb.setText('+')  # you could set an icon instead of text
+        nb.setText('+')
         nb.setAutoRaise(True)
         self.new_tab_button.clicked.connect(self.new_tab)
 

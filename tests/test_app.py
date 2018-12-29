@@ -25,8 +25,8 @@ if __name__ == '__main__':
 
     os.environ['QT_PREFERRED_BINDING'] = pyside
 
-    from PythonEditor.ui.features import nukepalette
     from PythonEditor.ui import ide
+    from PythonEditor.ui.features import nukepalette
     from PythonEditor.ui.Qt import QtWidgets
 
     try:

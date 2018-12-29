@@ -4,11 +4,13 @@ from PythonEditor.ui.Qt import QtWidgets, QtGui, QtCore
 
 from PythonEditor.utils.constants import DEFAULT_FONT
 from PythonEditor.ui.dialogs import shortcuteditor
-from PythonEditor.ui.features import (shortcuts,
-                                      linenumberarea,
-                                      syntaxhighlighter,
-                                      autocompletion,
-                                      contextmenu)
+from PythonEditor.ui.features import actions
+from PythonEditor.ui.features import shortcuts
+from PythonEditor.ui.features import linenumberarea
+from PythonEditor.ui.features import syntaxhighlighter
+from PythonEditor.ui.features import autocompletion
+from PythonEditor.ui.features import contextmenu
+
 
 CTRL = QtCore.Qt.ControlModifier
 CTRL_ALT = QtCore.Qt.ControlModifier | QtCore.Qt.AltModifier
@@ -39,20 +41,11 @@ class Editor(QtWidgets.QPlainTextEdit):
     post_key_pressed_signal   = QtCore.Signal(QtGui.QKeyEvent)
     wheel_signal              = QtCore.Signal(QtGui.QWheelEvent)
     key_pressed_signal        = QtCore.Signal(QtGui.QKeyEvent)
-    # key_release_signal        = QtCore.Signal(QtGui.QKeyEvent)
     shortcut_signal           = QtCore.Signal(QtGui.QKeyEvent)
     resize_signal             = QtCore.Signal(QtGui.QResizeEvent)
     context_menu_signal       = QtCore.Signal(QtWidgets.QMenu)
     tab_signal                = QtCore.Signal()
     home_key_signal           = QtCore.Signal()
-    ctrl_x_signal             = QtCore.Signal()
-    ctrl_n_signal             = QtCore.Signal()
-    ctrl_w_signal             = QtCore.Signal()
-    ctrl_s_signal             = QtCore.Signal()
-    ctrl_c_signal             = QtCore.Signal()
-    ctrl_enter_signal         = QtCore.Signal()
-    end_key_ctrl_alt_signal   = QtCore.Signal()
-    home_key_ctrl_alt_signal  = QtCore.Signal()
     relay_clear_output_signal = QtCore.Signal()
     editingFinished           = QtCore.Signal()
     text_changed_signal       = QtCore.Signal()
@@ -110,7 +103,6 @@ class Editor(QtWidgets.QPlainTextEdit):
             self.emit_text_changed = True
         QtCore.QTimer.singleShot(0, set_text_changed_enabled)
 
-        # self.emit_text_changed = True
         self.contextmenu = contextmenu.ContextMenu(self)
 
         # TOOD: add a new autocompleter that uses DirectConnection.
@@ -118,12 +110,13 @@ class Editor(QtWidgets.QPlainTextEdit):
         self.autocomplete = autocompletion.AutoCompleter(self)
 
         if self._handle_shortcuts:
-            sch = shortcuts.ShortcutHandler(
+            actions.Actions(
+                editor=self,
+            )
+            shortcuts.ShortcutHandler(
                 editor=self,
                 use_tabs=False
             )
-            sch.clear_output_signal.connect(self.relay_clear_output_signal)
-            self.shortcuteditor = shortcuteditor.ShortcutEditor(sch)
 
         self.selectionChanged.connect(self.highlight_same_words)
 
@@ -220,17 +213,10 @@ class Editor(QtWidgets.QPlainTextEdit):
         Emit signals for key events
         that QShortcut cannot override.
         """
-        # will this be enough to give focus back to the
-        # script editor or rest of the application?
+
         if not self.hasFocus():
             event.ignore()
             return
-
-        # self.wait_for_autocomplete = True
-        # # QtCore.Qt.DirectConnection
-        # self.key_pressed_signal.emit(event)
-
-        # self.autocomplete_overrode_keyevent = False
 
         if self.wait_for_autocomplete:
             # TODO: Connect (in autocomplete) using
@@ -238,68 +224,11 @@ class Editor(QtWidgets.QPlainTextEdit):
             self.key_pressed_signal.emit(event)
             return
 
-
         self.shortcut_overrode_keyevent = False
         self.shortcut_signal.emit(event)
         if self.shortcut_overrode_keyevent:
+            event.accept()
             return
-
-        if event.modifiers() == QtCore.Qt.NoModifier:
-            # Tab Key
-            if event.key() == QtCore.Qt.Key_Tab:
-                return self.tab_signal.emit()
-            # Enter/Return Key
-            if event.key() == QtCore.Qt.Key_Return:
-                return self.return_signal.emit(event)
-
-        # Ctrl+Enter/Return Key
-        if (event.key() == QtCore.Qt.Key_Return
-                and event.modifiers() == CTRL):
-            return self.ctrl_enter_signal.emit()
-
-        # Surround selected text in brackets or quotes
-        if (event.text() in self.wrap_types
-                and self.textCursor().hasSelection()):
-            return self.wrap_signal.emit(event.text())
-
-        if event.key() == QtCore.Qt.Key_Home:
-            # Ctrl+Alt+Home
-            if event.modifiers() == CTRL_ALT:
-                self.home_key_ctrl_alt_signal.emit()
-            # Home
-            elif event.modifiers() == QtCore.Qt.NoModifier:
-                return self.home_key_signal.emit()
-
-        # Ctrl+Alt+End
-        if (event.key() == QtCore.Qt.Key_End
-                and event.modifiers() == CTRL_ALT):
-            self.end_key_ctrl_alt_signal.emit()
-
-        # Ctrl+X
-        if (event.key() == QtCore.Qt.Key_X
-                and event.modifiers() == CTRL):
-            self.ctrl_x_signal.emit()
-            self.text_changed_signal.emit()
-
-        # Ctrl+N
-        if (event.key() == QtCore.Qt.Key_N
-                and event.modifiers() == CTRL):
-            self.ctrl_n_signal.emit()
-
-        # Ctrl+W
-        if (event.key() == QtCore.Qt.Key_W
-                and event.modifiers() == CTRL):
-            self.ctrl_w_signal.emit()
-
-        # Ctrl+S
-        if (event.key() == QtCore.Qt.Key_S
-                and event.modifiers() == CTRL):
-            self.ctrl_s_signal.emit()
-
-        # Ctrl+C
-        if (event.key() == QtCore.Qt.Key_C
-                and event.modifiers() == CTRL):
-            self.ctrl_c_signal.emit()
 
         super(Editor, self).keyPressEvent(event)
         self.post_key_pressed_signal.emit(event)
@@ -309,7 +238,6 @@ class Editor(QtWidgets.QPlainTextEdit):
             # when the key released is F5 (reload app)
             return
         self.wait_for_autocomplete = True
-        # self.key_release_signal.emit(event)
         super(Editor, self).keyReleaseEvent(event)
 
     def contextMenuEvent(self, event):
@@ -321,12 +249,12 @@ class Editor(QtWidgets.QPlainTextEdit):
         menu = self.createStandardContextMenu()
         self.context_menu_signal.emit(menu)
 
-    def dragEnterEvent(self, e):
-        mimeData = e.mimeData()
+    def dragEnterEvent(self, event):
+        mimeData = event.mimeData()
         if mimeData.hasUrls:
-            e.accept()
+            event.accept()
         else:
-            super(Editor, self).dragEnterEvent(e)
+            super(Editor, self).dragEnterEvent(event)
 
         # prevent mimedata from being displayed unless alt is held
         app = QtWidgets.QApplication.instance()
@@ -340,24 +268,24 @@ class Editor(QtWidgets.QPlainTextEdit):
             data = data.replace(b'\x12', b'')
             print(f, data)
 
-    def dragMoveEvent(self, e):
+    def dragMoveEvent(self, event):
         # prevent mimedata from being displayed unless alt is held
         app = QtWidgets.QApplication.instance()
         if app.keyboardModifiers() != QtCore.Qt.AltModifier:
-            super(Editor, self).dragMoveEvent(e)
+            super(Editor, self).dragMoveEvent(event)
             return
 
-        if e.mimeData().hasUrls:
-            e.accept()
+        if event.mimeData().hasUrls:
+            event.accept()
         else:
-            super(Editor, self).dragMoveEvent(e)
+            super(Editor, self).dragMoveEvent(event)
 
-    def dropEvent(self, e):
+    def dropEvent(self, event):
         """
         TODO: e.ignore() files and send to edittabs to
         create new tab instead?
         """
-        mimeData = e.mimeData()
+        mimeData = event.mimeData()
         if (mimeData.hasUrls
                 and mimeData.urls()):
             urls = mimeData.urls()
@@ -370,7 +298,7 @@ class Editor(QtWidgets.QPlainTextEdit):
 
             self.textCursor().insertText('\n'.join(text_list))
         else:
-            super(Editor, self).dropEvent(e)
+            super(Editor, self).dropEvent(event)
 
     def wheelEvent(self, event):
         """
@@ -392,6 +320,10 @@ class Editor(QtWidgets.QPlainTextEdit):
         """
         self.text_changed_signal.emit()
         super(Editor, self).insertFromMimeData(mimeData)
+
+    def showEvent(self, event):
+        self.setFocus(QtCore.Qt.MouseFocusReason)
+        super(Editor, self).showEvent(event)
 
     """ # Great idea, needs testing
     variable = ''

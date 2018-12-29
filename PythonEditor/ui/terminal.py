@@ -23,8 +23,8 @@ class Terminal(QtWidgets.QPlainTextEdit):
         font = QtGui.QFont(DEFAULT_FONT)
         font.setPointSize(10)
         self.setFont(font)
-        self.setup()
-        # QtCore.QTimer.singleShot(100, self.setup)
+        # self.setup()
+        QtCore.QTimer.singleShot(0, self.setup)
 
     @QtCore.Slot(str)
     def receive(self, text):
@@ -39,8 +39,9 @@ class Terminal(QtWidgets.QPlainTextEdit):
         self.insertPlainText(text)
 
     def stop(self):
-        sys.stdout.reset()
-        sys.stderr.reset()
+        for stream in sys.stdout, sys.stderr:
+            if hasattr(stream, 'reset'):
+                stream.reset()
 
     def setup(self):
         """

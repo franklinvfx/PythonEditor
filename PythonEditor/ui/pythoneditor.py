@@ -51,7 +51,6 @@ class PythonEditor(QtWidgets.QWidget):
             editor=self.editor,
             tabeditor=self.tabeditor,
             terminal=self.terminal,
-            # use_tabs=True
         )
         sch = shortcuts.ShortcutHandler(
             editor=self.editor,

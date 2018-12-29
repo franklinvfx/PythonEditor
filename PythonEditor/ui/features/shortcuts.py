@@ -6,17 +6,19 @@ from PythonEditor.ui.Qt import QtWidgets, QtGui, QtCore
 from PythonEditor.utils.signals import connect
 from PythonEditor.ui.features import actions
 
+
 def key_to_sequence(key):
     """
-    Convert the given QtCore.Qt.Key type
-    to a QKeySequence including currently
-    held modifiers.
+    Convert the given QtCore.Qt.Key type to a QKeySequence
+    including currently held modifiers. The only downside
+    to this being that, for keys that require shift to be
+    held, the sequence Shift+Key will be returned.
     """
     modifier_map = {
-        QtCore.Qt.Key_Control: QtCore.Qt.ControlModifier,
-        QtCore.Qt.Key_Shift: QtCore.Qt.ShiftModifier,
-        QtCore.Qt.Key_Alt: QtCore.Qt.AltModifier,
-        QtCore.Qt.Key_Meta: QtCore.Qt.MetaModifier,
+        QtCore.Qt.Key_Control : QtCore.Qt.ControlModifier,
+        QtCore.Qt.Key_Shift   : QtCore.Qt.ShiftModifier,
+        QtCore.Qt.Key_Alt     : QtCore.Qt.AltModifier,
+        QtCore.Qt.Key_Meta    : QtCore.Qt.MetaModifier,
     }
     held = QtWidgets.QApplication.keyboardModifiers()
     combo = 0
@@ -29,23 +31,10 @@ def key_to_sequence(key):
     return combo
 
 
-def seq_to_shortcut(combo):
-    combo = combo.toString()
-    try:
-        combo = str(combo)
-    except UnicodeEncodeError:
-        combo = repr(combo)
-    return combo
-
-
-# FIXME:
-# Shift+Home doesn't select
-# wrap_handler doesn't know which key was pressed (store it on the editor?)
 class ShortcutHandler(QtCore.QObject):
     """
     Shortcut Manager with custom signals.
     """
-    clear_output_signal = QtCore.Signal()
     exec_text_signal = QtCore.Signal()
 
     def __init__(
@@ -80,13 +69,9 @@ class ShortcutHandler(QtCore.QObject):
 
         if terminal is not None:
             self.terminal = terminal
-            self.clear_output_signal.connect(
-                self.terminal.clear
-            )
         self.parent_widget = parent_widget
-
         self.setParent(parent_widget)
-        self.all_shortcuts = []
+
         self.shortcut_dict = {}
 
         self.register_shortcuts()
@@ -105,8 +90,8 @@ class ShortcutHandler(QtCore.QObject):
     QtCore.Slot(QtGui.QKeyEvent)
     def handle_keypress(self, event):
 
-        # if event.isAutoRepeat():
-        #     return
+        if event.isAutoRepeat():
+            return
 
         key = event.key()
         if key in [
@@ -118,16 +103,23 @@ class ShortcutHandler(QtCore.QObject):
         ]:
             return
 
-        combo = key_to_sequence(key)
-        shortcut = seq_to_shortcut(combo)
-        action = self.shortcut_dict.get(shortcut)
-        if action is None:
-            return
+        held = QtWidgets.QApplication.keyboardModifiers()
 
-        print(shortcut)
+        # try with event.text() for things like " and {
+        # which appear as shift+2 and shift+[ respectively
+        action = self.shortcut_dict.get(event.text())
+
+        if action is None:
+            combo = key_to_sequence(key)
+            shortcut = combo.toString()
+            action = self.shortcut_dict.get(shortcut)
+
+            if action is None:
+                return
+
         # need some way for the key to be
         # recognised, for example in wrap_text
-        self.editor.last_key_pressed = key
+        self.editor.last_key_pressed = event.text()
         action.trigger()
         self.editor.shortcut_overrode_keyevent = True
 
@@ -147,6 +139,7 @@ class ShortcutHandler(QtCore.QObject):
                 continue
             for action_name, attributes in widget_actions.items():
                 shortcuts = attributes['Shortcuts']
+                # method_name = attributes['Method']
                 if len(shortcuts) == 0:
                     continue
                 for action in widget.actions():
@@ -169,6 +162,3 @@ class ShortcutHandler(QtCore.QObject):
                 action.setShortcutContext(
                     QtCore.Qt.WidgetShortcut
                 )
-
-        from pprint import pprint
-        pprint(self.shortcut_dict)
