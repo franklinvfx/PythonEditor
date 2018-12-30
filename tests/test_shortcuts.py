@@ -279,7 +279,6 @@ test_ascii_shortcut(
     expected_result=u'',
 )
 
-
 test_ascii_shortcut(
     widget=test_editor,
     shortcut='Ctrl+Shift+Del',
@@ -296,14 +295,12 @@ test_ascii_shortcut(
     cursor_placement=5
 )
 
-
 test_ascii_shortcut(
     widget=test_editor,
     shortcut='Ctrl+Shift+D',
     input_text='some_text',
     expected_result=u'some_text\nsome_text',
 )
-
 
 test_ascii_shortcut(
     widget=test_editor,
@@ -319,14 +316,12 @@ test_ascii_shortcut(
     expected_result=u'',
 )
 
-
 test_ascii_shortcut(
     widget=test_editor,
     shortcut='Ctrl+B',
     input_text='test_editor.clear()',
     expected_result=u'',
 )
-
 
 test_ascii_shortcut(
     widget=test_editor,
@@ -387,21 +382,118 @@ test_ascii_shortcut(
     selected_text='te'
 )
 
+test_ascii_shortcut(
+    widget=test_editor,
+    shortcut='Ctrl+Alt+Home',
+    input_text='\nword new\nnext thing',
+    expected_result=u'next thing\nword new\n',
+    selected_text='next thing'
+)
+
+test_ascii_shortcut(
+    widget=test_editor,
+    shortcut='Ctrl+Alt+End',
+    input_text='next thing\nword new\n',
+    expected_result=u'\nword new\nnext thing',
+    selected_text='next thing'
+)
+
+test_ascii_shortcut(
+    widget=test_editor,
+    shortcut='Ctrl+\\',
+    input_text='C:\\path\\file.txt',
+    expected_result=u'C:/path/file.txt',
+)
+
+test_ascii_shortcut(
+    widget=test_editor,
+    shortcut='Ctrl+\\',
+    input_text='C:/path/file.txt',
+    expected_result=u'C:\\\\path\\\\file.txt',
+)
+
+test_ascii_shortcut(
+    widget=test_editor,
+    shortcut='Ctrl+/',
+    input_text='thing',
+    expected_result=u'#thing',
+)
+
+test_ascii_shortcut(
+    widget=test_editor,
+    shortcut='Ctrl+/',
+    input_text='#thing',
+    expected_result=u'thing',
+)
+
+test_ascii_shortcut(
+    widget=test_editor,
+    shortcut='"',
+    input_text='thing',
+    expected_result=u'"thing"',
+    selected_text='thing'
+)
+
+test_ascii_shortcut(
+    widget=test_editor,
+    shortcut='[',
+    input_text='thing',
+    expected_result=u'[thing]',
+    selected_text='thing'
+)
+
+test_ascii_shortcut(
+    widget=test_editor,
+    shortcut=']',
+    input_text='thing',
+    expected_result=u'[thing]',
+    selected_text='thing'
+)
+
+test_ascii_shortcut(
+    widget=test_editor,
+    shortcut='(',
+    input_text='thing',
+    expected_result=u'(thing)',
+    selected_text='thing'
+)
+
+test_ascii_shortcut(
+    widget=test_editor,
+    shortcut=')',
+    input_text='thing',
+    expected_result=u'(thing)',
+    selected_text='thing'
+)
+
+test_ascii_shortcut(
+    widget=test_editor,
+    shortcut='{',
+    input_text='thing',
+    expected_result=u'{thing}',
+    selected_text='thing'
+)
+
+test_ascii_shortcut(
+    widget=test_editor,
+    shortcut='}',
+    input_text='thing',
+    expected_result=u'{thing}',
+    selected_text='thing'
+)
+
+test_ascii_shortcut(
+    widget=test_editor,
+    shortcut="'",
+    input_text='thing',
+    expected_result=u"'thing'",
+    selected_text='thing'
+)
+
 #&& # a few more
-Ctrl+Shift+Down
-Ctrl+Shift+Up
-Ctrl+Alt+End
-Ctrl+Alt+Home
-Ctrl+\\
-Ctrl+/
-u"'",
-u'"',
-u'[',
-u']',
-u'(',
-u')',
-u'{',
-u'}'
+'Ctrl+Shift+Down'
+'Ctrl+Shift+Up'
+
 #&&
 
 def test_shortcuts(editor):
