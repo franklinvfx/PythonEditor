@@ -320,7 +320,7 @@ class Actions(QtCore.QObject):
         """
         textCursor = self.editor.textCursor()
         text = textCursor.block().text()
-        indentCount = len(text) - len(text.lstrip(' '))
+        indentCount = len(text)-len(text.lstrip(' '))
 
         doc = self.editor.document()
         if doc.characterAt(textCursor.position()-1) == ':':
@@ -346,7 +346,9 @@ class Actions(QtCore.QObject):
             self.editor.cut()
             return
 
-        textCursor.select(QtGui.QTextCursor.LineUnderCursor)
+        textCursor.select(
+            QtGui.QTextCursor.LineUnderCursor
+        )
         text = textCursor.selectedText()
         textCursor.insertText('')
 
@@ -376,38 +378,47 @@ class Actions(QtCore.QObject):
         Duplicates the current line or
         selected text downwards.
         """
-        textCursor = self.editor.textCursor()
-        if textCursor.hasSelection():
-            selected_text = textCursor.selectedText()
-            start = textCursor.selectionStart()
-            end = textCursor.selectionEnd()
+        cursor = self.editor.textCursor()
+        if cursor.hasSelection():
+            selected_text = cursor.selectedText()
+            start = cursor.selectionStart()
+            end = cursor.selectionEnd()
             if start > end:
                 new_end = start
                 start = end
                 end = new_end
             length = end-start
 
-            textCursor.setPosition(
+            cursor.setPosition(
                 end,
                 QtGui.QTextCursor.MoveAnchor
             )
-            textCursor.insertText(selected_text)
-            textCursor.setPosition(
+            cursor.insertText(selected_text)
+            cursor.setPosition(
                 end,
                 QtGui.QTextCursor.MoveAnchor
             )
-            textCursor.setPosition(
+            cursor.setPosition(
                 end+length,
                 QtGui.QTextCursor.KeepAnchor
             )
-            self.editor.setTextCursor(textCursor)
+            self.editor.setTextCursor(cursor)
         else:
-            textCursor.movePosition(QtGui.QTextCursor.EndOfLine)
-            end_pos = textCursor.position()
-            textCursor.movePosition(QtGui.QTextCursor.StartOfLine)
-            textCursor.setPosition(end_pos, QtGui.QTextCursor.KeepAnchor)
-            selected_text = textCursor.selectedText()
-            textCursor.insertText(selected_text+'\n'+selected_text)
+            cursor.movePosition(
+                QtGui.QTextCursor.EndOfLine
+            )
+            end_pos = cursor.position()
+            cursor.movePosition(
+                QtGui.QTextCursor.StartOfLine
+            )
+            cursor.setPosition(
+                end_pos,
+                QtGui.QTextCursor.KeepAnchor
+            )
+            selected_text = cursor.selectedText()
+            cursor.insertText(
+                selected_text+'\n'+selected_text
+            )
 
     def new_line_above(self):
         """
@@ -415,9 +426,11 @@ class Actions(QtCore.QObject):
         """
         textCursor = self.editor.textCursor()
         line = textCursor.block().text()
-        indentCount = len(line) - len(line.lstrip(' '))
+        indentCount = len(line)-len(line.lstrip(' '))
         indent = ' '*indentCount
-        textCursor.movePosition(textCursor.StartOfLine)
+        textCursor.movePosition(
+            textCursor.StartOfLine
+        )
         self.editor.setTextCursor(textCursor)
         textCursor.insertText(indent+'\n')
         self.editor.moveCursor(textCursor.Left)
@@ -428,9 +441,11 @@ class Actions(QtCore.QObject):
         """
         textCursor = self.editor.textCursor()
         line = textCursor.block().text()
-        indentCount = len(line) - len(line.lstrip(' '))
+        indentCount = len(line)-len(line.lstrip(' '))
         indent = ' '*indentCount
-        textCursor.movePosition(textCursor.EndOfLine)
+        textCursor.movePosition(
+            textCursor.EndOfLine
+        )
         self.editor.setTextCursor(textCursor)
         textCursor.insertText('\n'+indent)
 
@@ -441,8 +456,13 @@ class Actions(QtCore.QObject):
         """
         textCursor = self.editor.textCursor()
         pos = textCursor.position()
-        textCursor.movePosition(QtGui.QTextCursor.EndOfLine)
-        textCursor.setPosition(pos, QtGui.QTextCursor.KeepAnchor)
+        textCursor.movePosition(
+            QtGui.QTextCursor.EndOfLine
+        )
+        textCursor.setPosition(
+            pos,
+            QtGui.QTextCursor.KeepAnchor
+        )
         textCursor.insertText('')
 
     def delete_to_start_of_line(self):
@@ -562,12 +582,16 @@ class Actions(QtCore.QObject):
 
         # iterate through lines in doc commenting or uncommenting
         # based on whether everything is commented or not
-        commentAllOut = any([not str(block.text()).lstrip().startswith('#')
-                            for block in blocks])
-        if commentAllOut:
+        comment_all_out = any([
+            not str(block.text()).lstrip().startswith('#')
+            for block in blocks
+        ])
+        if comment_all_out:
             for block in blocks:
                 cursor = QtGui.QTextCursor(block)
-                cursor.select(QtGui.QTextCursor.LineUnderCursor)
+                cursor.select(
+                    QtGui.QTextCursor.LineUnderCursor
+                )
                 selectedText = cursor.selectedText()
                 right_split = len(selectedText.lstrip())
                 count = len(selectedText)
@@ -578,7 +602,9 @@ class Actions(QtCore.QObject):
         else:
             for block in blocks:
                 cursor = QtGui.QTextCursor(block)
-                cursor.select(QtGui.QTextCursor.LineUnderCursor)
+                cursor.select(
+                    QtGui.QTextCursor.LineUnderCursor
+                )
                 selectedText = cursor.selectedText()
                 newText = str(selectedText).replace('#', '', 1)
                 cursor.insertText(newText)
@@ -595,11 +621,17 @@ class Actions(QtCore.QObject):
         start = textCursor.selectionStart()
         end = textCursor.selectionEnd()
         selection_length = end-start
-        textCursor.setPosition(start, QtGui.QTextCursor.MoveAnchor)
+        textCursor.setPosition(
+            start,
+            QtGui.QTextCursor.MoveAnchor
+        )
         textCursor.movePosition(QtGui.QTextCursor.StartOfBlock)
         new_start = textCursor.position()
 
-        textCursor.setPosition(end, QtGui.QTextCursor.MoveAnchor)
+        textCursor.setPosition(
+            end,
+            QtGui.QTextCursor.MoveAnchor
+        )
         textCursor.movePosition(QtGui.QTextCursor.EndOfBlock)
 
         start_offset = start-new_start
@@ -947,6 +979,7 @@ class Actions(QtCore.QObject):
         user to type line to go to. Store current
         line in case user cancels.
         """
+        self.line_edit = QtWidgets.QLineEdit()
         pass
 
     def command_palette(self):
@@ -1014,7 +1047,10 @@ class Actions(QtCore.QObject):
         if lookup(text, textCursor):
             return
         # search from the beginning of the document
-        textCursor.setPosition(0, QtGui.QTextCursor.MoveAnchor)
+        textCursor.setPosition(
+            0,
+            QtGui.QTextCursor.MoveAnchor
+        )
         lookup(text, textCursor)
 
     def reload_package(self):
@@ -1280,15 +1316,19 @@ def save_action(tabs, editor):
     tabs.contents_saved_signal.emit(tabs['uuid'])
 
 
-def open_action(tabs, editor):
+def open_action(tabs, editor, path=''):
     """
     Simple open file.
     :tabs: TabBar
     :editor: Editor
+    :path: optional path to file.
     """
-    o = QtWidgets.QFileDialog.getOpenFileName
-    path, _ = o(tabs, "Open File")
     if not path:
+        o = QtWidgets.QFileDialog.getOpenFileName
+        path, _ = o(tabs, "Open File")
+        if not path:
+            return
+    elif not os.path.isfile(path):
         return
 
     with open(path, 'rt') as f:
