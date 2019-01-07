@@ -80,6 +80,26 @@ def test_ascii_shortcut(
     )
 
 
+def setup_test(
+    widget, 
+    input_text, 
+    selected_text=None, 
+    cursor_placement=None
+):
+    widget.clear()
+    widget.insertPlainText(input_text)
+    widget.activateWindow()
+    widget.setFocus(QtCore.Qt.MouseFocusReason)
+    if selected_text is not None:
+        doc = widget.document()
+        cursor = doc.find(selected_text)
+        widget.setTextCursor(cursor)
+    if cursor_placement is not None:
+        cursor = widget.textCursor()
+        cursor.setPosition(cursor_placement)
+        widget.setTextCursor(cursor)
+        
+
 def test_shortcut(
         widget,
         key,
@@ -102,27 +122,12 @@ def test_shortcut(
     window = app.activeWindow()
 
     try:
-        widget.clear()
-        widget.insertPlainText(input_text)
-        widget.activateWindow()
-        widget.setFocus(QtCore.Qt.MouseFocusReason)
-        if selected_text is not None:
-            #cursor = widget.textCursor()
-            doc = widget.document()
-            cursor = doc.find(selected_text)
-            #cursor.setPosition(
-                #pos,
-                #QtGui.QTextCursor.MoveAnchor,
-            #)
-            #cursor.setPosition(
-                #pos+len(selected_text),
-                #QtGui.QTextCursor.KeepAnchor,
-            #)
-            widget.setTextCursor(cursor)
-        if cursor_placement is not None:
-            cursor = widget.textCursor()
-            cursor.setPosition(cursor_placement)
-            widget.setTextCursor(cursor)
+        setup_test(
+            widget, 
+            input_text, 
+            selected_text=selected_text, 
+            cursor_placement=cursor_placement
+        )
 
         QtTest.QTest.keyPress(
             widget,
@@ -151,6 +156,7 @@ def test_action(
     input_text,
     expected_result,
     selected_text=None,
+    cursor_placement=None
 ):
     """
     Sets the widget text and applies the action,
@@ -166,18 +172,12 @@ def test_action(
     assert action_name == action.text()
 
     try:
-        widget.clear()
-        widget.insertPlainText('if this:')
-        widget.activateWindow()
-        widget.setFocus(QtCore.Qt.MouseFocusReason)
-        if selected_text is not None:
-            cursor = widget.textCursor()
-            pos = widget.find(selected_text)
-            cursor.setPosition(pos)
-            cursor.movePosition(
-                len(selected_text),
-                QtGui.QTextCursor.KeepAnchor
-            )
+        setup_test(
+            widget, 
+            input_text, 
+            selected_text=selected_text, 
+            cursor_placement=cursor_placement
+        )
 
         # widget.last_key_pressed may be necessary here for some actions... but should those actions really fall under this domain? or be placed on the editor?
         action.trigger()
