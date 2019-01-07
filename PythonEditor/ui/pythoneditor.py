@@ -28,7 +28,9 @@ class PythonEditor(QtWidgets.QWidget):
 
     def construct_ui(self):
         layout = QtWidgets.QVBoxLayout(self)
-        layout.setObjectName('PythonEditor_MainLayout')
+        layout.setObjectName(
+            'PythonEditor_MainLayout'
+        )
         layout.setContentsMargins(0, 0, 0, 0)
 
         self.tabeditor = tabs.TabEditor(self)
@@ -60,12 +62,18 @@ class PythonEditor(QtWidgets.QWidget):
         )
 
         self.menubar = menubar.MenuBar(self)
-        self.shortcuteditor = shortcuteditor.ShortcutEditor(
+
+        SE = shortcuteditor.ShortcutEditor
+        self.shortcuteditor = SE(
             editor=self.editor,
             tabeditor=self.tabeditor,
             terminal=self.terminal
             )
-        self.preferenceseditor = preferences.PreferencesEditor()
-        self.filehandler = autosavexml.AutoSaveManager(
+
+        PE = preferences.PreferencesEditor
+        self.preferenceseditor = PE()
+
+        AM = autosavexml.AutoSaveManager
+        self.filehandler = AM(
             self.tabeditor
         )
