@@ -142,11 +142,12 @@ class Tabs(QtWidgets.QTabBar):
     over_button = -1
 
     # for autosave purposes:
-    contents_saved_signal = QtCore.Signal(str)
-    tab_close_signal = QtCore.Signal(str) # in case we receive a ctrl+shift+w signal to close the tab
-    tab_renamed_signal = QtCore.Signal(str, str, str, str, object)
+    contents_saved_signal   = QtCore.Signal(str)
+    # in case we receive a ctrl+shift+w signal to close the tab:
+    tab_close_signal        = QtCore.Signal(str)
+    tab_renamed_signal      = QtCore.Signal(str, str, str, str, object)
     tab_repositioned_signal = QtCore.Signal(int, int)
-    reset_tab_signal = QtCore.Signal()
+    reset_tab_signal        = QtCore.Signal()
 
     def __init__(self, *args):
         super(Tabs, self).__init__(*args)
