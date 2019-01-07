@@ -63,6 +63,7 @@ class Editor(QtWidgets.QPlainTextEdit):
         font.setPointSize(10)
         self.setFont(font)
         self.setMouseTracking(True)
+        self.setCursorWidth(2)
         self.setStyleSheet("""
         QToolTip {
         color: #F6F6F6;
@@ -98,7 +99,10 @@ class Editor(QtWidgets.QPlainTextEdit):
 
         # QSyntaxHighlighter causes textChanged to be emitted, which we don't want.
         self.emit_text_changed = False
-        syntaxhighlighter.Highlight(self.document())
+        syntaxhighlighter.Highlight(
+            self.document(),
+            self
+        )
         def set_text_changed_enabled():
             self.emit_text_changed = True
         QtCore.QTimer.singleShot(0, set_text_changed_enabled)
@@ -118,8 +122,6 @@ class Editor(QtWidgets.QPlainTextEdit):
                 use_tabs=False
             )
 
-        self.selectionChanged.connect(self.highlight_same_words)
-
     def _handle_textChanged(self):
         self._changed = True
 
@@ -129,25 +131,6 @@ class Editor(QtWidgets.QPlainTextEdit):
 
     def setTextChanged(self, state=True):
         self._changed = state
-
-    def highlight_same_words(self):
-        """
-        Highlights other matching words in document
-        when full word selected.
-        TODO: implement this!
-        """
-        textCursor = self.textCursor()
-        if not textCursor.hasSelection():
-            return
-
-        """
-        text = textCursor.selection().toPlainText()
-        textCursor.select(QtGui.QTextCursor.WordUnderCursor)
-        word = textCursor.selection().toPlainText()
-        print(text, word)
-        if text == word:
-            print(word)
-        """
 
     def setPlainText(self, text):
         """
@@ -213,7 +196,6 @@ class Editor(QtWidgets.QPlainTextEdit):
         Emit signals for key events
         that QShortcut cannot override.
         """
-
         if not self.hasFocus():
             event.ignore()
             return
@@ -249,47 +231,38 @@ class Editor(QtWidgets.QPlainTextEdit):
         menu = self.createStandardContextMenu()
         self.context_menu_signal.emit(menu)
 
-    def dragEnterEvent(self, event):
-        mimeData = event.mimeData()
-        if mimeData.hasUrls:
-            event.accept()
-        else:
-            super(Editor, self).dragEnterEvent(event)
-
-        # prevent mimedata from being displayed unless alt is held
-        app = QtWidgets.QApplication.instance()
-        if app.keyboardModifiers() != QtCore.Qt.AltModifier:
-            return
-
-        # let's see what the data contains, at least!
-        # maybe restrict this to non-known formats...
-        for f in mimeData.formats():
-            data = str(mimeData.data(f)).replace(b'\0', b'')
-            data = data.replace(b'\x12', b'')
-            print(f, data)
-
-    def dragMoveEvent(self, event):
-        # prevent mimedata from being displayed unless alt is held
-        app = QtWidgets.QApplication.instance()
-        if app.keyboardModifiers() != QtCore.Qt.AltModifier:
-            super(Editor, self).dragMoveEvent(event)
-            return
-
-        if event.mimeData().hasUrls:
-            event.accept()
-        else:
-            super(Editor, self).dragMoveEvent(event)
-
-    def dropEvent(self, event):
+    def event(self, event):
         """
-        TODO: e.ignore() files and send to edittabs to
-        create new tab instead?
+        Drop to open files implemented as a filter
+        instead of dragEnterEvent and dropEvent because
+        it is the only way to make it work on windows.
         """
-        mimeData = event.mimeData()
-        if (mimeData.hasUrls
-                and mimeData.urls()):
-            urls = mimeData.urls()
+        if event.type() == event.DragEnter:
+            mimeData = event.mimeData()
+            if mimeData.hasUrls():
+                event.accept()
+                return True
+        if event.type() == event.Drop:
+            mimeData = event.mimeData()
+            if mimeData.hasUrls():
+                event.accept()
+                urls = mimeData.urls()
+                self.drop_files(urls)
+                return True
 
+        return super(Editor, self).event(event)
+
+    def drop_files(self, urls):
+        """
+        When dragging and dropping files onto the editor
+        from a source with urls (file paths), if there are
+        tabs, open the files in new tabs. If the tabs are not
+        present just insert the text into the editor.
+        """
+        if self._handle_shortcuts:
+            # if we're handling shortcuts
+            # it means there are no tabs.
+            # just insert the text
             text_list = []
             for url in urls:
                 path = url.toLocalFile()
@@ -298,7 +271,10 @@ class Editor(QtWidgets.QPlainTextEdit):
 
             self.textCursor().insertText('\n'.join(text_list))
         else:
-            super(Editor, self).dropEvent(event)
+            tabeditor = self.parent()
+            for url in urls:
+                path = url.toLocalFile()
+                actions.open_action(tabeditor.tabs, self, path)
 
     def wheelEvent(self, event):
         """
@@ -325,48 +301,45 @@ class Editor(QtWidgets.QPlainTextEdit):
         self.setFocus(QtCore.Qt.MouseFocusReason)
         super(Editor, self).showEvent(event)
 
-    """ # Great idea, needs testing
-    variable = ''
-    def mouseMoveEvent(self, event):
-        super(Editor, self).mouseMoveEvent(event)
+    # variable = ''
+    # def mouseMoveEvent(self, event):
+    #     super(Editor, self).mouseMoveEvent(event)
 
-        cursor = self.cursorForPosition(event.pos())
-        selection = cursor.select(QtGui.QTextCursor.WordUnderCursor)
-        word = cursor.selection().toPlainText()
-        if not word.strip():
-            return
+    #     cursor = self.cursorForPosition(event.pos())
+    #     selection = cursor.select(QtGui.QTextCursor.WordUnderCursor)
+    #     word = cursor.selection().toPlainText()
+    #     if not word.strip():
+    #         return
 
-        variable = word
-        start = cursor.selectionStart()
-        end = cursor.selectionEnd()
-        text = self.toPlainText()
-        pretext = text[:start]
-        postext = text[end:]
+    #     variable = word
+    #     start = cursor.selectionStart()
+    #     end = cursor.selectionEnd()
+    #     text = self.toPlainText()
+    #     pretext = text[:start]
+    #     postext = text[end:]
 
-        for letter in reversed(pretext):
-            if not (letter.isalnum() or letter in ['_','.']):
-                break
-            else:
-                variable = letter + variable
+    #     for letter in reversed(pretext):
+    #         if not (letter.isalnum() or letter in ['_','.']):
+    #             break
+    #         else:
+    #             variable = letter + variable
 
-        for letter in postext:
-            if not (letter.isalnum() or letter in ['_','.']):
-                break
-            variable += letter
+    #     for letter in postext:
+    #         if not (letter.isalnum() or letter in ['_','.']):
+    #             break
+    #         variable += letter
 
-        if self.variable == variable:
-            return
+    #     if self.variable == variable:
+    #         return
 
-        self.variable = variable
-        obj = __main__.__dict__.get(variable)
-        if obj is None:
-            return
+    #     self.variable = variable
+    #     obj = __main__.__dict__.get(variable)
+    #     if obj is None:
+    #         return
 
-        print obj
-        if hasattr(obj, '__doc__'):
-            print obj.__doc__
-
-    """
+    #     print obj
+    #     if hasattr(obj, '__doc__'):
+    #         print obj.__doc__
 
     # def show_function_help(self, text):
     #     """
