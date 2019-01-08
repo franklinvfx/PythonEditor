@@ -937,11 +937,17 @@ class Actions(QtCore.QObject):
         first_pos = first_half.rfind('(')
         second_pos = second_half.find(')')
 
-        first_pos = first_pos + 1
-        second_pos = second_pos + pos
+        first_pos = first_pos+1
+        second_pos = second_pos+pos
 
-        textCursor.setPosition(first_pos, QtGui.QTextCursor.MoveAnchor)
-        textCursor.setPosition(second_pos, QtGui.QTextCursor.KeepAnchor)
+        textCursor.setPosition(
+            first_pos,
+            QtGui.QTextCursor.MoveAnchor
+        )
+        textCursor.setPosition(
+            second_pos,
+            QtGui.QTextCursor.KeepAnchor
+        )
         self.editor.setTextCursor(textCursor)
 
     # -------------------------------------- #
@@ -966,7 +972,9 @@ class Actions(QtCore.QObject):
         selection = textCursor.selection()
         text = selection.toPlainText()
         if not text:
-            textCursor.select(QtGui.QTextCursor.BlockUnderCursor)
+            textCursor.select(
+                QtGui.QTextCursor.BlockUnderCursor
+            )
             selection = textCursor.selection()
             text = selection.toPlainText().lstrip()
 
@@ -979,8 +987,8 @@ class Actions(QtCore.QObject):
         user to type line to go to. Store current
         line in case user cancels.
         """
-        self.line_edit = QtWidgets.QLineEdit()
-        pass
+        self.goto_palette = GotoPalette(self.editor)
+        self.goto_palette.show()
 
     def command_palette(self):
         """
@@ -1170,9 +1178,15 @@ class Actions(QtCore.QObject):
                     ])
 
         pos = textCursor.position()
-        blockNumbers |= set([doc.findBlock(pos).blockNumber()])
+        blockNumbers |= set([
+            doc.findBlock(
+            pos).blockNumber()
+        ])
 
-        def isEmpty(b): return doc.findBlockByNumber(b).text().strip() != ''
+        def isEmpty(b):
+            return doc.findBlockByNumber(
+                b).text().strip() != ''
+
         blocks = []
         for b in blockNumbers:
             bn = doc.findBlockByNumber(b)
@@ -1191,9 +1205,13 @@ class Actions(QtCore.QObject):
         """
         textCursor = self.editor.textCursor()
         init_pos = textCursor.position()
-        textCursor.select(QtGui.QTextCursor.LineUnderCursor)
+        textCursor.select(
+            QtGui.QTextCursor.LineUnderCursor
+        )
         text = textCursor.selection().toPlainText()
-        textCursor.movePosition(QtGui.QTextCursor.StartOfLine)
+        textCursor.movePosition(
+            QtGui.QTextCursor.StartOfLine
+        )
         pos = textCursor.position()
         offset = len(text)-len(text.lstrip())
         new_pos = pos+offset
@@ -1211,18 +1229,22 @@ class Actions(QtCore.QObject):
         """
         font = self.editor.font()
         size = font.pointSize()
-        delta = event.delta()
-        amount = int(delta/10) if delta > 1 or delta < -1 else delta
+        d = event.delta()
+        amount = int(d/10) if d > 1 or d < -1 else d
         new_size = size + amount
         new_size = new_size if new_size > 0 else 1
         font.setPointSize(new_size)
         self.editor.setFont(font)
 
     def save_selected_text(self):
-        save.save_selected_text(self.editor)
+        save.save_selected_text(
+            self.editor
+        )
 
     def export_selected_to_external_editor(self):
-        save.export_selected_to_external_editor(self.editor)
+        save.export_selected_to_external_editor(
+            self.editor
+        )
 
     def export_current_tab_to_external_editor(self):
         save.export_current_tab_to_external_editor(
@@ -1255,6 +1277,99 @@ class Actions(QtCore.QObject):
         msg = 'Python Editor version {0} by Max Last'.format(__version__)
         self.about_dialog = QtWidgets.QLabel(msg)
         self.about_dialog.show()
+
+
+class CommandPalette(QtWidgets.QLineEdit):
+    def __init__(self, editor):
+        super(CommandPalette, self).__init__()
+        self.editor = editor
+        self.setWindowFlags(
+            QtCore.Qt.WindowStaysOnTopHint
+            | QtCore.Qt.FramelessWindowHint
+        )
+        self.editingFinished.connect(self.hide)
+
+    def keyPressEvent(self, event):
+        esc = QtCore.Qt.Key.Key_Escape
+        if event.key() == esc:
+            self.hide()
+        super(
+            CommandPalette, self
+            ).keyPressEvent(event)
+
+    def showEvent(self, event):
+        self.editor.installEventFilter(self)
+        self.setFocus(QtCore.Qt.MouseFocusReason)
+        super(CommandPalette, self).showEvent(event)
+        self.match_editor_size()
+
+    def hideEvent(self, event):
+        self.editor.removeEventFilter(self)
+        super(CommandPalette, self).hideEvent(event)
+
+    def match_editor_size(self):
+        geo = self.editor.geometry()
+        centre = geo.center()
+        x = centre.x()-(self.width()/2)
+        y = geo.top()-12
+        pos = QtCore.QPoint(x, y)
+        pos = self.editor.mapToGlobal(pos)
+        self.move(pos)
+
+    def eventFilter(self, obj, event):
+        if event.type() == QtCore.QEvent.Move:
+            self.match_editor_size()
+        elif event.type() == QtCore.QEvent.Resize:
+            self.match_editor_size()
+        elif event.type() == QtCore.QEvent.Hide:
+            self.hide()
+        return False
+
+
+class GotoPalette(CommandPalette):
+    def __init__(self, editor):
+        super(GotoPalette, self).__init__(editor)
+        self.editor = editor
+        self.current_line = editor.textCursor(
+            ).block(
+            ).blockNumber()+1
+        self.match_editor_size()
+
+    def keyPressEvent(self, event):
+        esc = QtCore.Qt.Key.Key_Escape
+        if event.key() == esc:
+            self.goto_line(self.current_line)
+            self.hide()
+
+        if event.text().isalpha():
+            return
+
+        super(
+            GotoPalette, self
+            ).keyPressEvent(event)
+        try:
+            lineno = int(self.text())
+        except ValueError:
+            return
+        self.goto_line(lineno)
+
+    def goto_line(self, lineno):
+        """
+        Sets the text cursor of the editor
+        to the given lineno.
+        """
+        editor = self.editor
+        count = editor.blockCount()
+        if lineno > count:
+            lineno = count
+        lineno = lineno-1
+        pos = editor.document(
+            ).findBlockByNumber(
+            lineno).position()
+
+        cursor = editor.textCursor()
+        cursor.setPosition(pos)
+        editor.setTextCursor(cursor)
 
 
 def make_action(name, widget, func):
