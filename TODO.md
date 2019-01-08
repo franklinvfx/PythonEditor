@@ -64,7 +64,7 @@
       editor path, the dialog should open to that path
 - [ ] Add menu on the top right corner to select between tabs
 - [ ] Preferences - colour
-- [ ] Preferences - shortcuts - this has been at least partially accomplished on another branch
+- [ ] Preferences - shortcuts - just need a place to save new shortcuts and override actions_dict
 - [ ] Preferences - indentation (backspace deletes single space or tab)
 - [ ] Preferences - disable autocompletion in comments
 - [ ] Warn if file has changed on disk (as with autosave when regaining tab focus)
