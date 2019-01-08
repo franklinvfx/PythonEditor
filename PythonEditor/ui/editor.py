@@ -1,8 +1,11 @@
+import os
 import uuid
 import __main__
-from PythonEditor.ui.Qt import QtWidgets, QtGui, QtCore
+from PythonEditor.ui.Qt import QtWidgets
+from PythonEditor.ui.Qt import QtGui
+from PythonEditor.ui.Qt import QtCore
 
-from PythonEditor.utils.constants import DEFAULT_FONT
+from PythonEditor.utils import constants
 from PythonEditor.ui.dialogs import shortcuteditor
 from PythonEditor.ui.features import actions
 from PythonEditor.ui.features import shortcuts
@@ -13,19 +16,25 @@ from PythonEditor.ui.features import contextmenu
 
 
 CTRL = QtCore.Qt.ControlModifier
-CTRL_ALT = QtCore.Qt.ControlModifier | QtCore.Qt.AltModifier
+CTRL_ALT = (
+    QtCore.Qt.ControlModifier
+    | QtCore.Qt.AltModifier
+)
 
 
 class Editor(QtWidgets.QPlainTextEdit):
     """
-    Code Editor widget. Extends QPlainTextEdit to provide:
+    Code Editor widget. Extends QPlainTextEdit to
+    provide:
     - Line Number Area
     - Syntax Highlighting
     - Autocompletion (of Python code)
     - Shortcuts for code editing
     - New Context Menu
-    - Signals for connecting the Editor to other UI elements.
-    - Unique identifier to match Editor widget to file storage.
+    - Signals for connecting the Editor to other
+        UI elements.
+    - Unique identifier to match Editor widget to
+        file storage.
     """
     wrap_types = [
         '\'', '"',
@@ -36,14 +45,30 @@ class Editor(QtWidgets.QPlainTextEdit):
 
     wrap_signal               = QtCore.Signal(str)
     uuid_signal               = QtCore.Signal(str)
-    return_signal             = QtCore.Signal(QtGui.QKeyEvent)
-    focus_in_signal           = QtCore.Signal(QtGui.QFocusEvent)
-    post_key_pressed_signal   = QtCore.Signal(QtGui.QKeyEvent)
-    wheel_signal              = QtCore.Signal(QtGui.QWheelEvent)
-    key_pressed_signal        = QtCore.Signal(QtGui.QKeyEvent)
-    shortcut_signal           = QtCore.Signal(QtGui.QKeyEvent)
-    resize_signal             = QtCore.Signal(QtGui.QResizeEvent)
-    context_menu_signal       = QtCore.Signal(QtWidgets.QMenu)
+    return_signal             = QtCore.Signal(
+                                  QtGui.QKeyEvent
+                                )
+    focus_in_signal           = QtCore.Signal(
+                                  QtGui.QFocusEvent
+                                )
+    post_key_pressed_signal   = QtCore.Signal(
+                                  QtGui.QKeyEvent
+                                )
+    wheel_signal              = QtCore.Signal(
+                                  QtGui.QWheelEvent
+                                )
+    key_pressed_signal        = QtCore.Signal(
+                                  QtGui.QKeyEvent
+                                )
+    shortcut_signal           = QtCore.Signal(
+                                  QtGui.QKeyEvent
+                                )
+    resize_signal             = QtCore.Signal(
+                                  QtGui.QResizeEvent
+                                )
+    context_menu_signal       = QtCore.Signal(
+                                  QtWidgets.QMenu
+                                )
     tab_signal                = QtCore.Signal()
     home_key_signal           = QtCore.Signal()
     relay_clear_output_signal = QtCore.Signal()
@@ -59,9 +84,16 @@ class Editor(QtWidgets.QPlainTextEdit):
         super(Editor, self).__init__()
         self.setObjectName('Editor')
         self.setAcceptDrops(True)
+
+        DEFAULT_FONT = constants.DEFAULT_FONT
+        df = 'PYTHONEDITOR_DEFAULT_FONT'
+        if os.getenv(df) is not None:
+            DEFAULT_FONT = os.environ[df]
+        print(DEFAULT_FONT)
         font = QtGui.QFont(DEFAULT_FONT)
         font.setPointSize(10)
         self.setFont(font)
+
         self.setMouseTracking(True)
         self.setCursorWidth(2)
         self.setStyleSheet("""
@@ -82,7 +114,9 @@ class Editor(QtWidgets.QPlainTextEdit):
         self._features_initialised = False
 
         self.emit_text_changed = True
-        self.textChanged.connect(self._handle_textChanged)
+        self.textChanged.connect(
+            self._handle_textChanged
+        )
 
         linenumberarea.LineNumberArea(self)
 
@@ -97,7 +131,9 @@ class Editor(QtWidgets.QPlainTextEdit):
             return
         self._features_initialised = True
 
-        # QSyntaxHighlighter causes textChanged to be emitted, which we don't want.
+        # QSyntaxHighlighter causes
+        # textChanged to be emitted,
+        # which we don't want.
         self.emit_text_changed = False
         syntaxhighlighter.Highlight(
             self.document(),
@@ -105,13 +141,19 @@ class Editor(QtWidgets.QPlainTextEdit):
         )
         def set_text_changed_enabled():
             self.emit_text_changed = True
-        QtCore.QTimer.singleShot(0, set_text_changed_enabled)
+        QtCore.QTimer.singleShot(
+            0,
+            set_text_changed_enabled
+        )
 
-        self.contextmenu = contextmenu.ContextMenu(self)
+        CM = contextmenu.ContextMenu
+        self.contextmenu = CM(self)
 
-        # TOOD: add a new autocompleter that uses DirectConnection.
+        # TODO: add a new autocompleter
+        # that uses DirectConnection.
         self.wait_for_autocomplete = True
-        self.autocomplete = autocompletion.AutoCompleter(self)
+        AC = autocompletion.AutoCompleter
+        self.autocomplete = AC(self)
 
         if self._handle_shortcuts:
             actions.Actions(
@@ -166,13 +208,14 @@ class Editor(QtWidgets.QPlainTextEdit):
         Emit a signal when focusing in a window.
         When there used to be an editor per tab,
         this would work well to check that the tab's
-        contents had not been changed. Now, we'll also
-        want to signal from the tab switched signal.
+        contents had not been changed. Now, we'll
+        also want to signal from the tab switched
+        signal.
         """
         FR = QtCore.Qt.FocusReason
         ignored_reasons = [
             FR.PopupFocusReason,
-            FR.MouseFocusReason
+            # FR.MouseFocusReason
         ]
         if event.reason() not in ignored_reasons:
             self.focus_in_signal.emit(event)
@@ -202,7 +245,8 @@ class Editor(QtWidgets.QPlainTextEdit):
 
         if self.wait_for_autocomplete:
             # TODO: Connect (in autocomplete) using
-            # QtCore.Qt.DirectConnection to work synchronously
+            # QtCore.Qt.DirectConnection to work
+            # synchronously
             self.key_pressed_signal.emit(event)
             return
 
@@ -217,7 +261,8 @@ class Editor(QtWidgets.QPlainTextEdit):
 
     def keyReleaseEvent(self, event):
         if not isinstance(self, Editor):
-            # when the key released is F5 (reload app)
+            # when the key released is F5
+            # (reload app)
             return
         self.wait_for_autocomplete = True
         super(Editor, self).keyReleaseEvent(event)
@@ -234,8 +279,9 @@ class Editor(QtWidgets.QPlainTextEdit):
     def event(self, event):
         """
         Drop to open files implemented as a filter
-        instead of dragEnterEvent and dropEvent because
-        it is the only way to make it work on windows.
+        instead of dragEnterEvent and dropEvent
+        because it is the only way to make it work
+        on windows.
         """
         if event.type() == event.DragEnter:
             mimeData = event.mimeData()
@@ -254,10 +300,11 @@ class Editor(QtWidgets.QPlainTextEdit):
 
     def drop_files(self, urls):
         """
-        When dragging and dropping files onto the editor
-        from a source with urls (file paths), if there are
-        tabs, open the files in new tabs. If the tabs are not
-        present just insert the text into the editor.
+        When dragging and dropping files onto the
+        editor from a source with urls (file paths),
+        if there are tabs, open the files in new
+        tabs. If the tabs are not present just insert
+        the text into the editor.
         """
         if self._handle_shortcuts:
             # if we're handling shortcuts
@@ -269,12 +316,19 @@ class Editor(QtWidgets.QPlainTextEdit):
                 with open(path, 'r') as f:
                     text_list.append(f.read())
 
-            self.textCursor().insertText('\n'.join(text_list))
+            self.textCursor(
+                ).insertText(
+                '\n'.join(text_list)
+            )
         else:
             tabeditor = self.parent()
             for url in urls:
                 path = url.toLocalFile()
-                actions.open_action(tabeditor.tabs, self, path)
+                actions.open_action(
+                    tabeditor.tabs,
+                    self,
+                    path
+                )
 
     def wheelEvent(self, event):
         """
@@ -282,7 +336,9 @@ class Editor(QtWidgets.QPlainTextEdit):
         """
         self.setFocus(QtCore.Qt.MouseFocusReason)
         vertical = QtCore.Qt.Orientation.Vertical
-        is_vertical = (event.orientation() == vertical)
+        is_vertical = (
+            event.orientation() == vertical
+        )
         is_ctrl = (event.modifiers() == CTRL)
         if is_ctrl and is_vertical:
             return self.wheel_signal.emit(event)
@@ -295,7 +351,9 @@ class Editor(QtWidgets.QPlainTextEdit):
         is pasted or dragged in.
         """
         self.text_changed_signal.emit()
-        super(Editor, self).insertFromMimeData(mimeData)
+        super(
+            Editor, self
+            ).insertFromMimeData(mimeData)
 
     def showEvent(self, event):
         self.setFocus(QtCore.Qt.MouseFocusReason)
@@ -306,7 +364,9 @@ class Editor(QtWidgets.QPlainTextEdit):
     #     super(Editor, self).mouseMoveEvent(event)
 
     #     cursor = self.cursorForPosition(event.pos())
-    #     selection = cursor.select(QtGui.QTextCursor.WordUnderCursor)
+    #     selection = cursor.select(
+    #         QtGui.QTextCursor.WordUnderCursor
+    #     )
     #     word = cursor.selection().toPlainText()
     #     if not word.strip():
     #         return
@@ -319,13 +379,19 @@ class Editor(QtWidgets.QPlainTextEdit):
     #     postext = text[end:]
 
     #     for letter in reversed(pretext):
-    #         if not (letter.isalnum() or letter in ['_','.']):
+    #         if not (
+    #             letter.isalnum()
+    #             or letter in ['_','.']
+    #             ):
     #             break
     #         else:
     #             variable = letter + variable
 
     #     for letter in postext:
-    #         if not (letter.isalnum() or letter in ['_','.']):
+    #         if not (
+    #             letter.isalnum()
+    #             or letter in ['_','.']
+    #             ):
     #             break
     #         variable += letter
 
@@ -352,13 +418,20 @@ class Editor(QtWidgets.QPlainTextEdit):
     #     name = text[:-1].split(' ')[-1]
     #     cmd = '__ret = ' + name
     #     try:
-    #         cmd = compile(cmd, '<Python Editor Tooltip>', 'exec')
+    #         cmd = compile(
+    #             cmd,
+    #             '<Python Editor Tooltip>',
+    #             'exec'
+    #         )
     #         exec(cmd, __main__.__dict__.copy(), _)
     #     except (SyntaxError, NameError):
     #         return
     #     _obj = _.get('__ret')
     #     if _obj and _obj.__doc__:
-    #         info = 'help(' + name + ')\n' + _obj.__doc__
+    #         info = 'help(%s)\n%s' % (
+    #             name,
+    #             _obj.__doc__
+    #             )
     #         if len(info) > 500:
     #             info = info[:500]+'...'
 
@@ -367,18 +440,31 @@ class Editor(QtWidgets.QPlainTextEdit):
     #             args = str(inspect.getargspec(_obj))
     #             info = args + '\n'*2 + info
 
-    #         center_cursor_rect = self.cursorRect().center()
-    #         global_rect = self.mapToGlobal(center_cursor_rect)
+    #         center_cursor_rect = self.cursorRect(
+    #             ).center()
+    #         global_rect = self.mapToGlobal(
+    #             center_cursor_rect
+    #         )
 
-    #         # TODO: border color? can be done with stylesheet?
+    #         # TODO: border color? can be done with
+    #         # stylesheet?
     #         # on the main widget?
-    #         # BUG: This assigns the global tooltip colour
+    #         # BUG: This assigns the global tooltip
+    #         # colour
     #         palette = QtWidgets.QToolTip.palette()
-    #         palette.setColor(QtGui.QPalette.ToolTipText,
-    #                          QtGui.QColor("#F6F6F6"))
-    #         palette.setColor(QtGui.QPalette.ToolTipBase,
-    #                          QtGui.QColor(45, 42, 46))
+    #         palette.setColor(
+    #             QtGui.QPalette.ToolTipText,
+    #             QtGui.QColor("#F6F6F6")
+    #         )
+    #         palette.setColor(
+    #             QtGui.QPalette.ToolTipBase,
+    #             QtGui.QColor(45, 42, 46)
+    #         )
     #         QtWidgets.QToolTip.setPalette(palette)
 
-    #         # TODO: Scrollable! Does QToolTip have this?
-    #         QtWidgets.QToolTip.showText(global_rect, info)
+    #         # TODO: Scrollable! Does QToolTip
+    #         # have this?
+    #         QtWidgets.QToolTip.showText(
+    #             global_rect,
+    #             info
+    #         )

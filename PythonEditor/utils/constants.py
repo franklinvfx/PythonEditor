@@ -22,4 +22,4 @@ if PYTHONEDITOR_CUSTOM_DIR is not None:
 QT_VERSION = os.pathsep.join([pyside, pyqt])
 
 DEFAULT_FONT = 'Courier New' if (os.name == 'nt') else 'DejaVu Sans Mono'
-
+os.environ['PYTHONEDITOR_DEFAULT_FONT'] = DEFAULT_FONT

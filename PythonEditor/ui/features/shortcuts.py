@@ -2,23 +2,27 @@ from __future__ import print_function
 import __main__
 from functools import partial
 
-from PythonEditor.ui.Qt import QtWidgets, QtGui, QtCore
+from PythonEditor.ui.Qt import QtWidgets
+from PythonEditor.ui.Qt import QtGui
+from PythonEditor.ui.Qt import QtCore
 from PythonEditor.utils.signals import connect
 from PythonEditor.ui.features import actions
 
 
 def key_to_sequence(key):
     """
-    Convert the given QtCore.Qt.Key type to a QKeySequence
-    including currently held modifiers. The only downside
-    to this being that, for keys that require shift to be
-    held, the sequence Shift+Key will be returned.
+    Convert the given QtCore.Qt.Key type to a
+    QKeySequence including currently held modifiers.
+    The only downside to this being that, for keys
+    that require shift to be held, the sequence
+    Shift+Key will be returned.
     """
+    QT = QtCore.Qt
     modifier_map = {
-        QtCore.Qt.Key_Control : QtCore.Qt.ControlModifier,
-        QtCore.Qt.Key_Shift   : QtCore.Qt.ShiftModifier,
-        QtCore.Qt.Key_Alt     : QtCore.Qt.AltModifier,
-        QtCore.Qt.Key_Meta    : QtCore.Qt.MetaModifier,
+        QT.Key_Control : QT.ControlModifier,
+        QT.Key_Shift   : QT.ShiftModifier,
+        QT.Key_Alt     : QT.AltModifier,
+        QT.Key_Meta    : QT.MetaModifier,
     }
     held = QtWidgets.QApplication.keyboardModifiers()
     combo = 0
@@ -55,8 +59,10 @@ class ShortcutHandler(QtCore.QObject):
         self.use_tabs = use_tabs
 
         if editor is None:
-            raise Exception(
-                'A text editor is necessary for this class.'
+            raise Exception("""
+            A text editor is necessary
+            for this class.
+            """.strip()
             )
         self.editor = editor
 
@@ -103,16 +109,20 @@ class ShortcutHandler(QtCore.QObject):
         ]:
             return
 
-        held = QtWidgets.QApplication.keyboardModifiers()
+        app = QtWidgets.QApplication
+        held = app.keyboardModifiers()
 
-        # try with event.text() for things like " and {
-        # which appear as shift+2 and shift+[ respectively
+        # try with event.text() for things like "
+        # and { which appear as shift+2 and shift+[
+        # respectively
         action = self.shortcut_dict.get(event.text())
 
         if action is None:
             combo = key_to_sequence(key)
             shortcut = combo.toString()
-            action = self.shortcut_dict.get(shortcut)
+            action = self.shortcut_dict.get(
+                shortcut
+            )
 
             if action is None:
                 return
@@ -129,17 +139,21 @@ class ShortcutHandler(QtCore.QObject):
         to actions that exist on the widget.
         """
         if action_dict is None:
-            action_dict = actions.load_actions_from_json()
+            a = actions.load_actions_from_json
+            action_dict = a()
 
-        for widget_name, widget_actions in action_dict.items():
+        widgacts = action_dict.items()
+        for widget_name, widget_actions in widgacts:
             if not hasattr(self, widget_name):
                 continue
+
             widget = getattr(self, widget_name)
             if widget is None:
                 continue
-            for action_name, attributes in widget_actions.items():
+
+            acts = widget_actions.items()
+            for action_name, attributes in acts:
                 shortcuts = attributes['Shortcuts']
-                # method_name = attributes['Method']
                 if len(shortcuts) == 0:
                     continue
                 for action in widget.actions():
@@ -150,7 +164,9 @@ class ShortcutHandler(QtCore.QObject):
                     continue
                 key_seqs = []
                 for shortcut in shortcuts:
-                    key_seq = QtGui.QKeySequence(shortcut)
+                    key_seq = QtGui.QKeySequence(
+                        shortcut
+                    )
 
                     # convert to unicode again to make
                     # sure the format stays the same
