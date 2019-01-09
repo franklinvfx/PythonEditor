@@ -330,7 +330,6 @@ class Actions(QtCore.QObject):
         if len(text.strip()) != 0:
             newline += ' '*indentCount
 
-        # if not self.editor.wait_for_autocomplete:
         textCursor.insertText(newline)
         self.editor.setTextCursor(textCursor)
         return True
