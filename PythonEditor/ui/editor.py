@@ -1,3 +1,10 @@
+"""
+This module contains the main text editor that can be
+run independently, embedded in other layouts, or used
+within the tabbed editor to have different contents
+per tab.
+"""
+
 import os
 import uuid
 import __main__
@@ -15,26 +22,17 @@ from PythonEditor.ui.features import autocompletion
 from PythonEditor.ui.features import contextmenu
 
 
-CTRL = QtCore.Qt.ControlModifier
-CTRL_ALT = (
-    QtCore.Qt.ControlModifier
-    | QtCore.Qt.AltModifier
-)
-
-
 class Editor(QtWidgets.QPlainTextEdit):
     """
     Code Editor widget. Extends QPlainTextEdit to
-    provide:
+    provide (through separate modules):
     - Line Number Area
     - Syntax Highlighting
     - Autocompletion (of Python code)
     - Shortcuts for code editing
-    - New Context Menu
+    - Custom Context Menu
     - Signals for connecting the Editor to other
         UI elements.
-    - Unique identifier to match Editor widget to
-        file storage.
     """
     wrap_types = [
         '\'', '"',
@@ -43,37 +41,22 @@ class Editor(QtWidgets.QPlainTextEdit):
         '{', '}',
     ]
 
-    wrap_signal               = QtCore.Signal(str)
-    uuid_signal               = QtCore.Signal(str)
-    return_signal             = QtCore.Signal(
-                                  QtGui.QKeyEvent
-                                )
-    focus_in_signal           = QtCore.Signal(
-                                  QtGui.QFocusEvent
-                                )
-    post_key_pressed_signal   = QtCore.Signal(
-                                  QtGui.QKeyEvent
-                                )
-    wheel_signal              = QtCore.Signal(
-                                  QtGui.QWheelEvent
-                                )
-    key_pressed_signal        = QtCore.Signal(
-                                  QtGui.QKeyEvent
-                                )
-    shortcut_signal           = QtCore.Signal(
-                                  QtGui.QKeyEvent
-                                )
-    resize_signal             = QtCore.Signal(
-                                  QtGui.QResizeEvent
-                                )
-    context_menu_signal       = QtCore.Signal(
-                                  QtWidgets.QMenu
-                                )
-    tab_signal                = QtCore.Signal()
-    home_key_signal           = QtCore.Signal()
-    relay_clear_output_signal = QtCore.Signal()
-    editingFinished           = QtCore.Signal()
-    text_changed_signal       = QtCore.Signal()
+    S = QtCore.Signal
+    wrap_signal               = S(str)
+    uuid_signal               = S(str)
+    return_signal             = S(QtGui.QKeyEvent)
+    focus_in_signal           = S(QtGui.QFocusEvent)
+    post_key_pressed_signal   = S(QtGui.QKeyEvent)
+    wheel_signal              = S(QtGui.QWheelEvent)
+    key_pressed_signal        = S(QtGui.QKeyEvent)
+    shortcut_signal           = S(QtGui.QKeyEvent)
+    resize_signal             = S(QtGui.QResizeEvent)
+    context_menu_signal       = S(QtWidgets.QMenu)
+    tab_signal                = S()
+    home_key_signal           = S()
+    relay_clear_output_signal = S()
+    editingFinished           = S()
+    text_changed_signal       = S()
 
     def __init__(
             self,
@@ -89,7 +72,6 @@ class Editor(QtWidgets.QPlainTextEdit):
         df = 'PYTHONEDITOR_DEFAULT_FONT'
         if os.getenv(df) is not None:
             DEFAULT_FONT = os.environ[df]
-        print(DEFAULT_FONT)
         font = QtGui.QFont(DEFAULT_FONT)
         font.setPointSize(10)
         self.setFont(font)
@@ -102,12 +84,12 @@ class Editor(QtWidgets.QPlainTextEdit):
         background-color: rgb(45, 42, 46);
         }
         """)
-        self.shortcut_overrode_keyevent = False
 
+        # instance variables
         if uid is None:
             uid = str(uuid.uuid4())
         self._uuid = uid
-
+        self.shortcut_overrode_keyevent = False
         self._changed = False
         self.wait_for_autocomplete = False
         self._handle_shortcuts = handle_shortcuts
@@ -243,10 +225,15 @@ class Editor(QtWidgets.QPlainTextEdit):
             event.ignore()
             return
 
+        # TODO: Connect (in autocomplete) using
+        # QtCore.Qt.DirectConnection to work
+        # synchronously
+        # self.autocomplete_overrode_keyevent = False
+        #     self.key_pressed_signal.emit(event)
+        # if self.autocomplete_overrode_keyevent:
+        #     return
+
         if self.wait_for_autocomplete:
-            # TODO: Connect (in autocomplete) using
-            # QtCore.Qt.DirectConnection to work
-            # synchronously
             self.key_pressed_signal.emit(event)
             return
 
@@ -339,6 +326,7 @@ class Editor(QtWidgets.QPlainTextEdit):
         is_vertical = (
             event.orientation() == vertical
         )
+        CTRL = QtCore.Qt.ControlModifier
         is_ctrl = (event.modifiers() == CTRL)
         if is_ctrl and is_vertical:
             return self.wheel_signal.emit(event)

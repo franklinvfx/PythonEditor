@@ -12,10 +12,10 @@ from PythonEditor.ui.features import actions
 def key_to_sequence(key):
     """
     Convert the given QtCore.Qt.Key type to a
-    QKeySequence including currently held modifiers.
-    The only downside to this being that, for keys
-    that require shift to be held, the sequence
-    Shift+Key will be returned.
+    QKeySequence including currently held
+    modifiers. The only downside to this being
+    that, for keys that require shift to be held,
+    the sequence Shift+Key will be returned.
     """
     QT = QtCore.Qt
     modifier_map = {
@@ -24,7 +24,8 @@ def key_to_sequence(key):
         QT.Key_Alt     : QT.AltModifier,
         QT.Key_Meta    : QT.MetaModifier,
     }
-    held = QtWidgets.QApplication.keyboardModifiers()
+    app = QtWidgets.QApplication
+    held = app.keyboardModifiers()
     combo = 0
     for mod in modifier_map.values():
         if held & mod == mod:
@@ -112,10 +113,12 @@ class ShortcutHandler(QtCore.QObject):
         app = QtWidgets.QApplication
         held = app.keyboardModifiers()
 
-        # try with event.text() for things like "
-        # and { which appear as shift+2 and shift+[
-        # respectively
-        action = self.shortcut_dict.get(event.text())
+        # try with event.text() for things
+        # like " and { which appear as
+        # shift+2 and shift+[ respectively
+        action = self.shortcut_dict.get(
+            event.text()
+        )
 
         if action is None:
             combo = key_to_sequence(key)
@@ -129,14 +132,16 @@ class ShortcutHandler(QtCore.QObject):
 
         # need some way for the key to be
         # recognised, for example in wrap_text
-        self.editor.last_key_pressed = event.text()
+        e = self.editor
+        e.last_key_pressed = event.text()
         action.trigger()
-        self.editor.shortcut_overrode_keyevent = True
+        e.shortcut_overrode_keyevent = True
 
     def register_shortcuts(self, action_dict=None):
         """
-        Use the shortcut register to apply shortcuts
-        to actions that exist on the widget.
+        Use the shortcut register to apply
+        shortcuts to actions that exist
+        on the widget.
         """
         if action_dict is None:
             a = actions.load_actions_from_json
@@ -168,8 +173,9 @@ class ShortcutHandler(QtCore.QObject):
                         shortcut
                     )
 
-                    # convert to unicode again to make
-                    # sure the format stays the same
+                    # convert to unicode again to
+                    # make sure the format stays
+                    # the same
                     s = key_seq.toString()
                     self.shortcut_dict[s] = action
                     key_seqs.append(key_seq)
