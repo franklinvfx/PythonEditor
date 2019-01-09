@@ -252,7 +252,7 @@ class AutoCompleter(QtCore.QObject):
 
         for c in s:
             if (not c.isalnum()
-                    and c not in ['.', '_']):
+                and c not in ['.', '_']):
                 s = s.replace(c, ' ')
 
         word_after_dot = s.split(' ')[-1]
@@ -282,7 +282,7 @@ class AutoCompleter(QtCore.QObject):
 
         for c in s:
             if (not c.isalnum()
-                    and c not in ['.', '_']):
+                and c not in ['.', '_']):
                 s = s.replace(c, ' ')
 
         word_before_dot = s.split(' ')[-1]
@@ -290,8 +290,8 @@ class AutoCompleter(QtCore.QObject):
             word_before_dot.split('.')[:-1])
 
         if (word_before_dot.strip() == ''
-                or word_before_dot.endswith(_char)
-                or not word_before_dot[-1].isalnum()):
+            or word_before_dot.endswith(_char)
+            or not word_before_dot[-1].isalnum()):
             return
 
         if word_before_dot in ['self', 'cls']:
@@ -379,7 +379,7 @@ class AutoCompleter(QtCore.QObject):
         """
         Complete variable names in
         global scope.
-        TODO: Substring matching ;)
+        TODO: Substring matching
         """
         cp = self.completer
         variables = __main__.__dict__.keys()
