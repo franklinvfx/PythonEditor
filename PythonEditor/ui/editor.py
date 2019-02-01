@@ -39,8 +39,6 @@ class Editor(QtWidgets.QPlainTextEdit):
     post_key_pressed_signal   = QtCore.Signal(QtGui.QKeyEvent)
     wheel_signal              = QtCore.Signal(QtGui.QWheelEvent)
     key_pressed_signal        = QtCore.Signal(QtGui.QKeyEvent)
-    # key_release_signal        = QtCore.Signal(QtGui.QKeyEvent)
-    shortcut_signal           = QtCore.Signal(QtGui.QKeyEvent)
     resize_signal             = QtCore.Signal(QtGui.QResizeEvent)
     context_menu_signal       = QtCore.Signal(QtWidgets.QMenu)
     tab_signal                = QtCore.Signal()
@@ -76,7 +74,6 @@ class Editor(QtWidgets.QPlainTextEdit):
         background-color: rgb(45, 42, 46);
         }
         """)
-        self.shortcut_overrode_keyevent = False
 
         if uid is None:
             uid = str(uuid.uuid4())
@@ -86,6 +83,7 @@ class Editor(QtWidgets.QPlainTextEdit):
         self.wait_for_autocomplete = False
         self._handle_shortcuts = handle_shortcuts
         self._features_initialised = False
+        self._key_pressed = False
 
         self.emit_text_changed = True
         self.textChanged.connect(self._handle_textChanged)
@@ -118,10 +116,7 @@ class Editor(QtWidgets.QPlainTextEdit):
         self.autocomplete = autocompletion.AutoCompleter(self)
 
         if self._handle_shortcuts:
-            sch = shortcuts.ShortcutHandler(
-                editor=self,
-                use_tabs=False
-            )
+            sch = shortcuts.ShortcutHandler(self, use_tabs=False)
             sch.clear_output_signal.connect(self.relay_clear_output_signal)
             self.shortcuteditor = shortcuteditor.ShortcutEditor(sch)
 
@@ -196,7 +191,7 @@ class Editor(QtWidgets.QPlainTextEdit):
         FR = QtCore.Qt.FocusReason
         ignored_reasons = [
             FR.PopupFocusReason,
-            FR.MouseFocusReason
+            # FR.MouseFocusReason
         ]
         if event.reason() not in ignored_reasons:
             self.focus_in_signal.emit(event)
@@ -220,6 +215,8 @@ class Editor(QtWidgets.QPlainTextEdit):
         Emit signals for key events
         that QShortcut cannot override.
         """
+        self._key_pressed = True
+
         # will this be enough to give focus back to the
         # script editor or rest of the application?
         if not self.hasFocus():
@@ -230,18 +227,10 @@ class Editor(QtWidgets.QPlainTextEdit):
         # # QtCore.Qt.DirectConnection
         # self.key_pressed_signal.emit(event)
 
-        # self.autocomplete_overrode_keyevent = False
-
         if self.wait_for_autocomplete:
             # TODO: Connect (in autocomplete) using
             # QtCore.Qt.DirectConnection to work synchronously
             self.key_pressed_signal.emit(event)
-            return
-
-
-        self.shortcut_overrode_keyevent = False
-        self.shortcut_signal.emit(event)
-        if self.shortcut_overrode_keyevent:
             return
 
         if event.modifiers() == QtCore.Qt.NoModifier:
@@ -305,11 +294,11 @@ class Editor(QtWidgets.QPlainTextEdit):
         self.post_key_pressed_signal.emit(event)
 
     def keyReleaseEvent(self, event):
+        self._key_pressed = False
         if not isinstance(self, Editor):
             # when the key released is F5 (reload app)
             return
         self.wait_for_autocomplete = True
-        # self.key_release_signal.emit(event)
         super(Editor, self).keyReleaseEvent(event)
 
     def contextMenuEvent(self, event):
