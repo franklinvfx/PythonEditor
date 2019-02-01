@@ -583,7 +583,6 @@ class AutoSaveManager(QtCore.QObject):
                 debug(msg.format(name, path))
                 return
 
-            s.text = ''
             s.attrib['path'] = path
             self.tabs['saved'] = True
             # FIXME: i think it would be better to keep a temp copy of all open files
