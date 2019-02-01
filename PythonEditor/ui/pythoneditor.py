@@ -56,5 +56,5 @@ class PythonEditor(QtWidgets.QWidget):
         sch = shortcuts.ShortcutHandler(self.tabeditor, use_tabs=True)
         sch.clear_output_signal.connect(self.terminal.clear)
         self.shortcuteditor = shortcuteditor.ShortcutEditor(sch)
-        self.preferenceseditor = preferences.Preferences
+        self.preferenceseditor = preferences.PreferencesEditor()
         self.filehandler = autosavexml.AutoSaveManager(self.tabeditor)
