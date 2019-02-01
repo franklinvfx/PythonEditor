@@ -72,8 +72,8 @@ class MenuBar(object):
         help_menu.addAction('About Python Editor',
                             self.show_about_dialog)
 
-        edit_menu.addAction('Preferences',
-                            self.show_preferences)
+        # edit_menu.addAction('Preferences',
+        #                     self.show_preferences)
 
         edit_menu.addAction('Shortcuts',
                             self.show_shortcuts)
