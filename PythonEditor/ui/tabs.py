@@ -227,16 +227,28 @@ class Tabs(QtWidgets.QTabBar):
         rect.adjust(0,0, -side_button_width, 0)
         return rect
 
-    def event(self, e):
+    def event(self, event):
+
+        if not issubclass(Tabs, self.__class__):
+            # Check class (after reload, opening a new window, etc)
+            # this can raise TypeError:
+            # super(type, obj): obj must be an instance or subtype of type
+            return False
+
         try:
             QE = QtCore.QEvent
         except AttributeError:
             return True
 
-        if e.type() in [QE.HoverEnter, QE.HoverMove, QE.HoverLeave, QE.Paint]:
-            self.handle_close_button_display(e)
+        if event.type() in [
+                QE.HoverEnter,
+                QE.HoverMove,
+                QE.HoverLeave,
+                QE.Paint
+            ]:
+            self.handle_close_button_display(event)
 
-        elif e.type() == QtCore.QEvent.ToolTip:
+        elif event.type() == QtCore.QEvent.ToolTip:
             pos = self.mapFromGlobal(self.cursor().pos())
             if self.rect().contains(pos):
                 i = self.tabAt(pos)
@@ -246,11 +258,12 @@ class Tabs(QtWidgets.QTabBar):
                     if path:
                         self.setTabToolTip(i, path)
                     else:
-                        self.setTabToolTip(i, data.get('name'))
+                        self.setTabToolTip(
+                            i,
+                            data.get('name')
+                        )
 
-        # FIXME: after reload, can raise TypeError:
-        # super(type, obj): obj must be an instance or subtype of type
-        return super(Tabs, self).event(e)
+        return super(Tabs, self).event(event)
 
     def handle_close_button_display(self, e):
 
@@ -378,7 +391,11 @@ class Tabs(QtWidgets.QTabBar):
                 self.tab_repositioned_signal.emit(i, self.start_move_index)
 
         elif event.button() == QtCore.Qt.RightButton:
-            print 'show close/save menu'
+            from functools import partial
+            menu = QtWidgets.QMenu()
+            close_tab_func = partial(self.removeTab, i)
+            menu.addAction('Close Tab', close_tab_func)
+            menu.exec_(QtGui.QCursor().pos())
 
         elif event.button() == QtCore.Qt.MiddleButton:
             if i != -1:
